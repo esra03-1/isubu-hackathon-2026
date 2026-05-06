@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# Local SQLite data
+data/
+
 # Binaries
 bin/
 *.exe
@@ -30,4 +33,3 @@ go.work.sum
 .Trashes
 ehthumbs.db
 Thumbs.db
-

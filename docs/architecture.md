@@ -31,9 +31,11 @@ Demo Must Not Fail
 
 The backend includes demo fallback data. If the LLM fails, the presentation still works.
 
-No Database in MVP
+Small Internal Persistence
 
-The MVP uses localStorage for the last compiled plan. Database work is postponed unless core features are complete.
+The MVP still avoids user accounts and external integrations. Accepted stretch persistence uses SQLite on the backend with an anonymous browser/device id stored in localStorage and sent as `X-OneNext-Client-ID`.
+
+SQLite stores saved plans and OneNext-owned internal calendar events derived from compiled timelines.
 
 Strict Typing
 
@@ -60,7 +62,10 @@ Avoid interface{} in Go unless unavoidable and justified.
 │   ├── prompt.go
 │   └── demo.go
 ├── internal/handlers
-│   └── compile_handler.go
+│   ├── compile_handler.go
+│   └── plan_handler.go
+├── internal/storage
+│   └── sqlite.go
 └── internal/validation
     └── plan_validator.go
 Backend Layers
@@ -94,6 +99,14 @@ Responsible for:
 
 Request/response structs
 Shared domain types
+
+Storage Layer
+
+Responsible for:
+
+SQLite connection and migrations
+Saved plan persistence
+Calendar event persistence and range queries
 4. Frontend Architecture
 /web
 ├── src
@@ -144,12 +157,23 @@ The backend returns:
   "summary": {},
   "focus": {},
   "timeline": [],
+  "calendar_events": [],
   "replies": [],
   "insights": [],
   "debug": {}
 }
 
 The frontend must not assume optional backend fields unless defined in the contract.
+
+Persistence endpoints require:
+
+```text
+X-OneNext-Client-ID: string
+```
+
+The frontend generates this id once and stores it in localStorage. This is not authentication; it is device-scoped demo persistence.
+
+Saved timeline items become internal calendar events for the current planning date. Model-produced `calendar_events` become dated internal calendar events with backend-generated ids. External calendar sync remains out of scope.
 
 7. LLM Integration
 
@@ -160,6 +184,8 @@ Environment variables:
 GROQ_API_KEY=
 GROQ_MODEL=
 DEMO_MODE=false
+DATABASE_PATH=data/onenext.db
+APP_TIMEZONE=Europe/Istanbul
 
 The backend should be designed around an LLMClient interface so the provider can be swapped later.
 
@@ -185,10 +211,13 @@ Return Turkish visible text.
 Accept Turkish/English mixed input.
 Select one best next action.
 Build a realistic timeline.
+Use backend-provided date and internal calendar context when resolving relative dates.
 Draft replies only when the input implies communication.
 Flag missing information as insight warnings.
 Avoid unsupported claims.
 Add warnings to debug when assumptions are made.
+
+For persisted plan creation, `POST /api/v1/plans` fetches upcoming OneNext calendar events for the anonymous device id, computes relative date hints in Go, and injects them into the prompt before calling Groq. This avoids extra model/tool rounds for phrases like "next Tuesday."
 9. Fallback Strategy
 
 Fallback is required.

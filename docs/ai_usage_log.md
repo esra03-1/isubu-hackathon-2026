@@ -39,3 +39,13 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - AI-assisted work: Assisted with Vite React TS setup. Generated root `.gitignore`, TypeScript API interfaces mirroring Go structs (`types.ts`), and the `compileDay` fetch client. Built the initial `App.tsx` Input Screen with Tailwind CSS.
 - Human review: Frontend developer verified the Vite build and will take over styling and result screen rendering.
 
+### Device Persistence & Internal Calendar
+- Tool used: Codex.
+- AI-assisted work: Planned and implemented anonymous device-based SQLite persistence on branch `feature/backend-persistence-calendar`. Added saved plan endpoints, internal calendar range reads, calendar-aware prompt context for persisted compiles, and an extended AI output contract with no-id `calendar_events` that are persisted with backend-generated ids. Added backend tests and a curl-based `test.sh` e2e script.
+- Human review: User approved the scope as internal app calendar memory rather than external calendar integration or login, approved using the system Go toolchain, and confirmed AI should not generate persistent calendar event ids.
+- Verification: Ran `go test ./...`, `./test.sh`, and `git diff --check` successfully.
+
+### Backend API Handoff
+- Tool used: Codex.
+- AI-assisted work: Added `docs/backend_api_handoff.md` with frontend integration instructions, curl examples, TypeScript response shapes, device id behavior, and endpoint mapping.
+- Human review: User asked for a small API handoff doc so frontend teammates can integrate without reading backend code.

@@ -9,10 +9,12 @@ import (
 )
 
 type Config struct {
-	Port       string
-	GroqModel  string
-	DemoMode   bool
-	GroqAPIKey string
+	Port         string
+	GroqModel    string
+	DemoMode     bool
+	GroqAPIKey   string
+	DatabasePath string
+	Timezone     string
 }
 
 func Load() Config {
@@ -21,10 +23,12 @@ func Load() Config {
 	}
 
 	return Config{
-		Port:       getEnv("PORT", "8080"),
-		GroqModel:  getEnv("GROQ_MODEL", "llama-3.1-8b-instant"),
-		DemoMode:   parseBool(getEnv("DEMO_MODE", "true")),
-		GroqAPIKey: getEnv("GROQ_API_KEY", ""),
+		Port:         getEnv("PORT", "8080"),
+		GroqModel:    getEnv("GROQ_MODEL", "llama-3.1-8b-instant"),
+		DemoMode:     parseBool(getEnv("DEMO_MODE", "true")),
+		GroqAPIKey:   getEnv("GROQ_API_KEY", ""),
+		DatabasePath: getEnv("DATABASE_PATH", "data/onenext.db"),
+		Timezone:     getEnv("APP_TIMEZONE", "Europe/Istanbul"),
 	}
 }
 

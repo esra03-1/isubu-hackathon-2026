@@ -36,6 +36,20 @@ func DemoPlan(model string) models.CompiledPlan {
 				Type:  "meeting",
 			},
 		},
+		CalendarEvents: []models.CompiledCalendarEvent{
+			{
+				Date:  "2026-05-07",
+				Time:  "09:30",
+				Title: "Quiz tekrari",
+				Type:  "academic",
+			},
+			{
+				Date:  "2026-05-12",
+				Time:  "16:00",
+				Title: "Hackathon demo kontrolu",
+				Type:  "work",
+			},
+		},
 		Replies: []models.ReplyDraft{
 			{
 				ID:        "reply-1",

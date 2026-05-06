@@ -80,19 +80,21 @@ OneNext reduces decision fatigue by telling the user what to do next, while also
 - Estimated saved time
 - Turkish UI labels
 - Mixed Turkish/English input support
+- Anonymous device-based persistence for saved plans
+- Internal OneNext calendar events derived from saved timelines
 
 ### Nice to Have / Stretch
 
 - Share card image export
 - Light/dark mode
-- SQLite database
-- Plan history
+- Weekly/monthly calendar views
+- AI prompt context from internal calendar history
 - More advanced animations
 
 ### Explicitly Out of Scope
 
 - User authentication
-- Calendar integration
+- External calendar integration
 - Gmail integration
 - WhatsApp integration
 - Push notifications
@@ -120,7 +122,7 @@ Monorepo.
 ├── ROADMAP.md
 └── AI_USAGE_LOG.md
 Backend
-Go 1.21+
+Go 1.25+
 Gin or Fiber
 Groq API integration
 Environment-based configuration
@@ -144,6 +146,8 @@ GROQ_API_KEY=...
 GROQ_MODEL=llama-3.1-8b-instant
 PORT=8080
 DEMO_MODE=false
+DATABASE_PATH=data/onenext.db
+APP_TIMEZONE=Europe/Istanbul
 7. Architecture Overview
 
 The frontend never talks directly to Groq.
@@ -189,6 +193,14 @@ Success Response: 200 OK
       "type": "work|errand|meeting|academic|personal"
     }
   ],
+  "calendar_events": [
+    {
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM",
+      "title": "string",
+      "type": "work|errand|meeting|academic|personal"
+    }
+  ],
   "replies": [
     {
       "id": "string",
@@ -219,6 +231,71 @@ Error Response
     "message": "string"
   }
 }
+
+Persistence Endpoints
+
+Authenticated user accounts are out of scope. Persistence uses an anonymous device id sent by the frontend:
+
+```text
+X-OneNext-Client-ID: string
+```
+
+POST /api/v1/plans
+
+Request body matches `POST /api/v1/compile`:
+
+{
+  "raw_input": "string"
+}
+
+Success Response: 201 Created
+
+{
+  "id": "string",
+  "client_id": "string",
+  "raw_input": "string",
+  "compiled_plan": { },
+  "created_at": "string"
+}
+
+GET /api/v1/plans
+
+Success Response: 200 OK
+
+{
+  "plans": [
+    {
+      "id": "string",
+      "headline": "string",
+      "focus": "string",
+      "created_at": "string"
+    }
+  ]
+}
+
+GET /api/v1/plans/:id
+
+Returns the saved plan shape from `POST /api/v1/plans`.
+
+GET /api/v1/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD
+
+Success Response: 200 OK
+
+{
+  "events": [
+    {
+      "id": "string",
+      "client_id": "string",
+      "plan_id": "string",
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM",
+      "title": "string",
+      "type": "work|errand|meeting|academic|personal",
+      "source": "compiled_plan|ai_calendar_event",
+      "created_at": "string"
+    }
+  ]
+}
 9. Data Types
 Backend Go Structs
 type CompileRequest struct {
@@ -226,12 +303,13 @@ type CompileRequest struct {
 }
 
 type CompiledPlan struct {
-    Summary  Summary        `json:"summary"`
-    Focus    FocusAction    `json:"focus"`
-    Timeline []TimelineItem `json:"timeline"`
-    Replies  []ReplyDraft   `json:"replies"`
-    Insights []Insight      `json:"insights"`
-    Debug    DebugInfo      `json:"debug"`
+    Summary        Summary                 `json:"summary"`
+    Focus          FocusAction             `json:"focus"`
+    Timeline       []TimelineItem          `json:"timeline"`
+    CalendarEvents []CompiledCalendarEvent `json:"calendar_events"`
+    Replies        []ReplyDraft            `json:"replies"`
+    Insights       []Insight               `json:"insights"`
+    Debug          DebugInfo               `json:"debug"`
 }
 
 type Summary struct {
@@ -250,6 +328,13 @@ type FocusAction struct {
 
 type TimelineItem struct {
     ID    string `json:"id"`
+    Time  string `json:"time"`
+    Title string `json:"title"`
+    Type  string `json:"type"`
+}
+
+type CompiledCalendarEvent struct {
+    Date  string `json:"date"`
     Time  string `json:"time"`
     Title string `json:"title"`
     Type  string `json:"type"`

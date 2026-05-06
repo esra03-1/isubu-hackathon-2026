@@ -10,7 +10,11 @@ import (
 )
 
 func CompileInput(ctx context.Context, cfg config.Config, rawInput string) (*models.CompiledPlan, error) {
-	prompt := BuildPrompt(rawInput)
+	return CompileInputWithPromptContext(ctx, cfg, rawInput, PromptContext{})
+}
+
+func CompileInputWithPromptContext(ctx context.Context, cfg config.Config, rawInput string, promptContext PromptContext) (*models.CompiledPlan, error) {
+	prompt := BuildPromptWithContext(rawInput, promptContext)
 
 	rawOutput, err := CallGroq(ctx, cfg.GroqAPIKey, cfg.GroqModel, prompt)
 	if err != nil {

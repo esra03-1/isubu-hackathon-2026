@@ -4,13 +4,41 @@ type CompileRequest struct {
 	RawInput string `json:"raw_input"`
 }
 
+type SavedPlan struct {
+	ID           string       `json:"id"`
+	ClientID     string       `json:"client_id"`
+	RawInput     string       `json:"raw_input"`
+	CompiledPlan CompiledPlan `json:"compiled_plan"`
+	CreatedAt    string       `json:"created_at"`
+}
+
+type PlanSummary struct {
+	ID        string `json:"id"`
+	Headline  string `json:"headline"`
+	Focus     string `json:"focus"`
+	CreatedAt string `json:"created_at"`
+}
+
+type CalendarEvent struct {
+	ID        string `json:"id"`
+	ClientID  string `json:"client_id"`
+	PlanID    string `json:"plan_id"`
+	Date      string `json:"date"`
+	Time      string `json:"time"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Source    string `json:"source"`
+	CreatedAt string `json:"created_at"`
+}
+
 type CompiledPlan struct {
-	Summary  Summary        `json:"summary"`
-	Focus    FocusAction    `json:"focus"`
-	Timeline []TimelineItem `json:"timeline"`
-	Replies  []ReplyDraft   `json:"replies"`
-	Insights []Insight      `json:"insights"`
-	Debug    DebugInfo      `json:"debug"`
+	Summary        Summary                 `json:"summary"`
+	Focus          FocusAction             `json:"focus"`
+	Timeline       []TimelineItem          `json:"timeline"`
+	CalendarEvents []CompiledCalendarEvent `json:"calendar_events"`
+	Replies        []ReplyDraft            `json:"replies"`
+	Insights       []Insight               `json:"insights"`
+	Debug          DebugInfo               `json:"debug"`
 }
 
 type Summary struct {
@@ -29,6 +57,13 @@ type FocusAction struct {
 
 type TimelineItem struct {
 	ID    string `json:"id"`
+	Time  string `json:"time"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
+}
+
+type CompiledCalendarEvent struct {
+	Date  string `json:"date"`
 	Time  string `json:"time"`
 	Title string `json:"title"`
 	Type  string `json:"type"`
