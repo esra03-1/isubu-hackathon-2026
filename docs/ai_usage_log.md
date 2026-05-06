@@ -59,3 +59,8 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - Tool used: Codex.
 - AI-assisted work: Added `timeline[].duration` to backend/frontend contract surfaces and updated the planning prompt so generated timelines stay mindful of short breaks, meals, and context switching instead of packing tasks back-to-back.
 - Human review: User approved adding timeline durations to support the demo UI and asked for break-aware prompting without introducing separate break event persistence.
+
+### Frontend Customize Page Integration
+- Tool used: Google Antigravity.
+- AI-assisted work: Converted the prototype `CustomizeScreen` into a React Router page (`web/src/pages/CustomizePage.tsx`), updated `InputPage.tsx` to handle the routing and state correctly, and removed misaligned timeline dots from `ResultPage.tsx` per user feedback.
+- Human review: User provided the prototype UI code and requested the integration and subsequent style fix.
