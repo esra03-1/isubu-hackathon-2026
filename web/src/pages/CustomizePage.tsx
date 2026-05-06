@@ -69,13 +69,30 @@ export default function CustomizePage() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 p-4 md:p-8">
       
-      {/* Üst Bar / Geri Dön */}
-      <button 
-        onClick={handleBack}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm w-fit"
-      >
-        <ArrowLeft size={16} /> Ana sayfaya dön
-      </button>
+      {/* Üst Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <button 
+          onClick={handleBack}
+          className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
+        >
+          <ArrowLeft size={16} /> Ana sayfaya dön
+        </button>
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => alert('Haftalık planlama çok yakında! 🐾')}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm font-bold text-slate-600 hover:text-purple-600 transition-colors bg-white/80 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
+          >
+            Haftalık Plan Yap
+          </button>
+          <button 
+            onClick={() => alert('Aylık planlama çok yakında! 🐾')}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm font-bold text-slate-600 hover:text-[#f694c1] transition-colors bg-white/80 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
+          >
+            Aylık Plan Yap
+          </button>
+        </div>
+      </div>
 
       {/* Hero Section */}
       <div className="text-center max-w-2xl mx-auto mb-8">
