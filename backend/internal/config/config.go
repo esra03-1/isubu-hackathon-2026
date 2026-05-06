@@ -1,21 +1,30 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port      string
-	GroqModel string
-	DemoMode  bool
+	Port       string
+	GroqModel  string
+	DemoMode   bool
+	GroqAPIKey string
 }
 
 func Load() Config {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Printf("Error loading .env file: %v", err)
+	}
+
 	return Config{
-		Port:      getEnv("PORT", "8080"),
-		GroqModel: getEnv("GROQ_MODEL", "demo"),
-		DemoMode:  parseBool(getEnv("DEMO_MODE", "true")),
+		Port:       getEnv("PORT", "8080"),
+		GroqModel:  getEnv("GROQ_MODEL", "llama-3.1-8b-instant"),
+		DemoMode:   parseBool(getEnv("DEMO_MODE", "true")),
+		GroqAPIKey: getEnv("GROQ_API_KEY", ""),
 	}
 }
 
