@@ -80,13 +80,13 @@ export default function CustomizePage() {
         
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
-            onClick={() => alert('Haftalık planlama çok yakında! 🐾')}
+            onClick={() => navigate('/calendar?view=week')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm font-bold text-slate-600 hover:text-purple-600 transition-colors bg-white/80 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
           >
             Haftalık Plan Yap
           </button>
           <button 
-            onClick={() => alert('Aylık planlama çok yakında! 🐾')}
+            onClick={() => navigate('/calendar?view=month')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm font-bold text-slate-600 hover:text-[#f694c1] transition-colors bg-white/80 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
           >
             Aylık Plan Yap
