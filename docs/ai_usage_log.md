@@ -23,3 +23,19 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - Tool used: Codex.
 - AI-assisted work: Scaffolded the Go/Gin backend skeleton with health and compile endpoints, PRD-shaped structs, request validation, and demo fallback JSON.
 - Human review: Implementation should be reviewed against `docs/prd.md` before adding Groq integration.
+
+### Backend Tests & Router
+- Tool used: Google Antigravity.
+- AI-assisted work: Extracted Gin router into `internal/api/router.go` and implemented table-driven tests in `router_test.go` to lock in the PRD contract and demo fallback.
+- Human review: Ensured tests pass and keep architecture modular before LLM integration.
+
+### Groq LLM Integration
+- Tool used: Google Antigravity.
+- AI-assisted work: Built `groq_client.go` and `compiler.go` for LLM interaction. Designed `prompt.go` with the strict JSON schema required by the PRD. Connected integration to `compile_handler.go` with automatic fallback to `DemoPlan` on failure.
+- Human review: Tested locally via curl; noticed initial LLM schema mismatch, prompting an AI fix to strictly enforce the JSON format. Verified successful end-to-end integration.
+
+### Frontend Skeleton & API Client
+- Tool used: Google Antigravity.
+- AI-assisted work: Assisted with Vite React TS setup. Generated root `.gitignore`, TypeScript API interfaces mirroring Go structs (`types.ts`), and the `compileDay` fetch client. Built the initial `App.tsx` Input Screen with Tailwind CSS.
+- Human review: Frontend developer verified the Vite build and will take over styling and result screen rendering.
+
