@@ -52,7 +52,12 @@ export default function CalendarPage() {
       <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex-1 overflow-hidden h-[80vh]">
         <style>{`
           .fc-theme-standard td, .fc-theme-standard th {
-            border-color: #f1f5f9;
+            border-color: #e2e8f0 !important;
+            border-width: 1px !important;
+            border-style: solid !important;
+          }
+          .fc-theme-standard .fc-scrollgrid {
+            border-width: 1px !important;
           }
           .fc-col-header-cell {
             padding: 12px 0;
