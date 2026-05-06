@@ -1,70 +1,145 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, User, Clock, Target, Heart, Zap, FileText, Lock } from 'lucide-react';
-import { submitPlan } from '../api/client';
-import { mockData } from '../mockData';
+import { getSavedPlan, listPlans } from '../api/client';
+import type { PlanCustomization } from '../api/types';
 
 const LAST_INPUT_KEY = 'onenext_last_input';
-const LAST_PLAN_KEY = 'onenext_last_plan';
-const LAST_TS_KEY = 'onenext_last_ts';
 
-export default function CustomizePage() {
-  const navigate = useNavigate();
-  const rawInput = localStorage.getItem(LAST_INPUT_KEY) ?? '';
-  const hasInput = rawInput.trim().length > 0;
-  const [isLoading, setIsLoading] = useState(false);
+const emptyCustomization: PlanCustomization = {
+  name: '',
+  age: '',
+  role_or_school: '',
+  sleep_window: '',
+  school_hours: '',
+  work_hours: '',
+  productive_hours: '',
+  focus_duration: '',
+  daily_work_goal: '',
+  priorities: '',
+  focus_helpers: '',
+  challenges: '',
+  additional_notes: '',
+};
 
-  const handleBack = () => {
-    navigate(-1);
-  };
+interface FormInputProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxLength?: number;
+}
 
-  const handlePlan = async () => {
-    if (!hasInput) {
-      handleBack();
-      return;
-    }
-    
-    setIsLoading(true);
-    let plan = mockData;
-    try {
-      plan = await submitPlan({ raw_input: rawInput });
-    } catch {
-      // Backend erişilemiyorsa mock data ile devam et
-    } finally {
-      localStorage.setItem(LAST_INPUT_KEY, rawInput);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/loading', { state: { plan } });
-    }
-  };
-
-  const FormInput = ({ label, placeholder }: { label: string, placeholder: string }) => (
+function FormInput({ label, placeholder, value, onChange, maxLength = 100 }: FormInputProps) {
+  return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-bold text-slate-600">{label}</label>
-      <input 
-        type="text" 
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        maxLength={maxLength}
         placeholder={placeholder}
         className="w-full bg-slate-50/60 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e4c1f9] focus:border-[#e4c1f9] transition-all"
       />
     </div>
   );
+}
 
-  const FormTextarea = ({ label, placeholder, maxLines = 3, maxLength = 300, description }: { label: string, placeholder: string, maxLines?: number, maxLength?: number, description?: string }) => (
+interface FormTextareaProps {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxLines?: number;
+  maxLength?: number;
+  description?: string;
+}
+
+function FormTextarea({
+  label,
+  placeholder,
+  value,
+  onChange,
+  maxLines = 3,
+  maxLength = 300,
+  description,
+}: FormTextareaProps) {
+  return (
     <div className="flex flex-col gap-1.5 h-full">
       <label className="text-xs font-bold text-slate-600">{label}</label>
       {description && <p className="text-[11px] text-slate-500 mb-1">{description}</p>}
       <div className="relative flex-grow">
-        <textarea 
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          maxLength={maxLength}
           placeholder={placeholder}
           rows={maxLines}
           className="w-full h-full bg-slate-50/60 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e4c1f9] focus:border-[#e4c1f9] transition-all resize-none"
         />
         <div className="absolute bottom-2 right-3 text-[10px] font-semibold text-slate-400">
-          0 / {maxLength}
+          {value.length} / {maxLength}
         </div>
       </div>
     </div>
   );
+}
+
+export default function CustomizePage() {
+  const navigate = useNavigate();
+  const rawInput = localStorage.getItem(LAST_INPUT_KEY) ?? '';
+  const hasInput = rawInput.trim().length > 0;
+  const dirtyRef = useRef(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [customization, setCustomization] = useState<PlanCustomization>(emptyCustomization);
+
+  const updateCustomization = (field: keyof PlanCustomization, value: string) => {
+    dirtyRef.current = true;
+    setCustomization((current) => ({ ...current, [field]: value }));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateLatestCustomization = async () => {
+      try {
+        const plans = await listPlans();
+        if (plans.length === 0) return;
+
+        const latestPlan = await getSavedPlan(plans[0].id);
+        if (cancelled || dirtyRef.current) return;
+
+        setCustomization({
+          ...emptyCustomization,
+          ...latestPlan.customization,
+        });
+      } catch {
+        // Existing customization is optional; leave the form empty if backend history is unavailable.
+      }
+    };
+
+    void hydrateLatestCustomization();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleBack = () => {
+    navigate(-1);
+  };
+
+  const handlePlan = () => {
+    if (!hasInput) {
+      handleBack();
+      return;
+    }
+
+    setErrorMessage(null);
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    navigate('/loading', { state: { request: { raw_input: rawInput, customization } } });
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 p-4 md:p-8">
@@ -94,6 +169,11 @@ export default function CustomizePage() {
 
       {/* Bento Form Alanları */}
       <div className="space-y-6 max-w-4xl mx-auto">
+        {errorMessage && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </div>
+        )}
         
         {/* 1. Hakkında */}
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
@@ -104,9 +184,9 @@ export default function CustomizePage() {
             <h3 className="font-extrabold text-slate-800 text-lg">Hakkında</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <FormInput label="Adın (isteğe bağlı)" placeholder="Örn. Ayşe" />
-            <FormInput label="Yaşın (isteğe bağlı)" placeholder="Örn. 22" />
-            <FormInput label="Mesleğin / Okulun (isteğe bağlı)" placeholder="Örn. Yazılımcı / Üniversite Öğrencisi" />
+            <FormInput label="Adın (isteğe bağlı)" placeholder="Örn. Ayşe" value={customization.name} onChange={(value) => updateCustomization('name', value)} />
+            <FormInput label="Yaşın (isteğe bağlı)" placeholder="Örn. 22" value={customization.age} onChange={(value) => updateCustomization('age', value)} />
+            <FormInput label="Mesleğin / Okulun (isteğe bağlı)" placeholder="Örn. Yazılımcı / Üniversite Öğrencisi" value={customization.role_or_school} onChange={(value) => updateCustomization('role_or_school', value)} />
           </div>
         </div>
 
@@ -119,12 +199,12 @@ export default function CustomizePage() {
             <h3 className="font-extrabold text-slate-800 text-lg">Rutinin & Zaman Blokları</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <FormInput label="Uyku saat aralığın (isteğe bağlı)" placeholder="Örn. 23:30 - 07:30" />
-            <FormInput label="Okul saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 15:00" />
-            <FormInput label="İş / Mesai saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 18:00" />
-            <FormInput label="En verimli olduğun saatler (isteğe bağlı)" placeholder="Örn. 10:00 - 13:00" />
-            <FormInput label="Tek seferlik odaklanma süren (isteğe bağlı)" placeholder="Örn. 45 dk veya 1.5 saat" />
-            <FormInput label="Günlük toplam çalışma hedefin (isteğe bağlı)" placeholder="Örn. 4 saat" />
+            <FormInput label="Uyku saat aralığın (isteğe bağlı)" placeholder="Örn. 23:30 - 07:30" value={customization.sleep_window} onChange={(value) => updateCustomization('sleep_window', value)} />
+            <FormInput label="Okul saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 15:00" value={customization.school_hours} onChange={(value) => updateCustomization('school_hours', value)} />
+            <FormInput label="İş / Mesai saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 18:00" value={customization.work_hours} onChange={(value) => updateCustomization('work_hours', value)} />
+            <FormInput label="En verimli olduğun saatler (isteğe bağlı)" placeholder="Örn. 10:00 - 13:00" value={customization.productive_hours} onChange={(value) => updateCustomization('productive_hours', value)} />
+            <FormInput label="Tek seferlik odaklanma süren (isteğe bağlı)" placeholder="Örn. 45 dk veya 1.5 saat" value={customization.focus_duration} onChange={(value) => updateCustomization('focus_duration', value)} />
+            <FormInput label="Günlük toplam çalışma hedefin (isteğe bağlı)" placeholder="Örn. 4 saat" value={customization.daily_work_goal} onChange={(value) => updateCustomization('daily_work_goal', value)} />
           </div>
         </div>
 
@@ -142,6 +222,8 @@ export default function CustomizePage() {
             <FormTextarea 
               label="Sana en önemli olan şeyler neler? (isteğe bağlı)"
               placeholder="Örn. Sağlık, dersler, kariyer, kişisel gelişim..."
+              value={customization.priorities}
+              onChange={(value) => updateCustomization('priorities', value)}
               maxLength={300}
             />
           </div>
@@ -159,6 +241,8 @@ export default function CustomizePage() {
                 label=""
                 description="Seni motive eden veya odaklanmanı kolaylaştıran alışkanlıklar, ortamlar, yöntemler..."
                 placeholder="Örn. Müzik, sessiz ortam, pomodoro tekniği..."
+                value={customization.focus_helpers}
+                onChange={(value) => updateCustomization('focus_helpers', value)}
                 maxLength={200}
                 maxLines={4}
               />
@@ -175,6 +259,8 @@ export default function CustomizePage() {
                 label=""
                 description="Dikkatini dağıtan veya ertelemene neden olan durumlar..."
                 placeholder="Örn. Sosyal medya, dağınık masa, belirsizlik..."
+                value={customization.challenges}
+                onChange={(value) => updateCustomization('challenges', value)}
                 maxLength={200}
                 maxLines={4}
               />
@@ -192,6 +278,8 @@ export default function CustomizePage() {
             <FormTextarea 
               label="Planında dikkate almamızı istediğin başka bir şey var mı?"
               placeholder="Örn. Önemli bir sınav, seyahat, sağlık durumu..."
+              value={customization.additional_notes}
+              onChange={(value) => updateCustomization('additional_notes', value)}
               maxLength={300}
             />
           </div>
@@ -204,13 +292,12 @@ export default function CustomizePage() {
             <Lock size={20} className="text-[#a9def9] flex-shrink-0 mt-0.5 md:mt-0" />
             <p className="text-sm font-medium text-slate-600 leading-snug">
               <strong className="text-slate-800">Bu bilgiler sadece senin planını iyileştirmek için kullanılır.</strong><br/>
-              Hiçbir bilgi saklanmaz veya paylaşılmaz.
+              Plan kaydınla birlikte saklanır; başka biriyle paylaşılmaz.
             </p>
           </div>
           
           <button 
             onClick={hasInput ? handlePlan : handleBack}
-            disabled={isLoading}
             className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
           >
             {hasInput ? "Gününü Planla" : "Kaydet ve Dön"} <Sparkles size={16} fill="currentColor" />

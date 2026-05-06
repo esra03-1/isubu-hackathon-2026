@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Clock, Copy, Check, Terminal, Menu, Share2 } from 'lucide-react';
 import type { CompiledPlan } from '../api/types';
@@ -6,34 +6,61 @@ import { mockData } from '../mockData';
 
 const LAST_PLAN_KEY = 'onenext_last_plan';
 
+const pressureLabels: Record<CompiledPlan['summary']['dominant_pressure'], string> = {
+  academic: 'Akademik',
+  deadline: 'Teslim tarihi',
+  errand: 'Koşturmaca',
+  mixed: 'Karışık',
+  social: 'Sosyal',
+  work: 'İş',
+};
+
+const urgencyLabels: Record<CompiledPlan['focus']['urgency'], string> = {
+  high: 'Yüksek',
+  medium: 'Orta',
+  low: 'Düşük',
+};
+
+const severityEmoji: Record<'high' | 'medium' | 'low', string> = {
+  high: '🔥',
+  medium: '⚠️',
+  low: '💡',
+};
+
+function compareTimeStrings(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Plan: location.state'den al, yoksa localStorage'dan, yoksa mock
-  const [data, setData] = useState<CompiledPlan>(() => {
+  const data = (() => {
     const fromState = (location.state as { plan?: CompiledPlan } | null)?.plan;
-    if (fromState) return fromState;
+    if (fromState) {
+      return fromState;
+    }
+
     const saved = localStorage.getItem(LAST_PLAN_KEY);
     if (saved) {
-      try { return JSON.parse(saved) as CompiledPlan; } catch { /* ignore */ }
+      try {
+        return JSON.parse(saved) as CompiledPlan;
+      } catch {
+        // Ignore malformed local state and fall back to demo data.
+      }
     }
+
     return mockData;
-  });
+  })();
 
   const [showAllInsights, setShowAllInsights] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Eğer state ile geldiyse localStorage'ı güncelle
-  useEffect(() => {
-    const fromState = (location.state as { plan?: CompiledPlan } | null)?.plan;
-    if (fromState) {
-      setData(fromState);
-    }
-  }, [location.state]);
-
+  const sortedTimeline = [...data.timeline].sort((left, right) =>
+    compareTimeStrings(left.time, right.time)
+  );
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -48,11 +75,6 @@ export default function ResultPage() {
     if (t.includes('proje') || t.includes('doküman')) return '📁';
     if (t.includes('kapanış')) return '✅';
     return '📌';
-  };
-
-  const getDurationForTimeline = (index: number) => {
-    const durations = ['45 dk', '45 dk', '20 dk', '60 dk', '20 dk'];
-    return durations[index % durations.length];
   };
 
   const visibleInsights = showAllInsights ? data.insights : data.insights.slice(0, 3);
@@ -91,8 +113,11 @@ export default function ResultPage() {
               <span className="text-xl">📋</span>
               <h2 className="text-xl font-bold text-[#6b5883]">Günün Özeti</h2>
             </div>
+            <p className="text-slate-800 font-bold mb-2 max-w-xl">
+              {data.summary.headline}
+            </p>
             <p className="text-slate-600 font-medium mb-1">
-              Bugünün baskısı: {data.summary.dominant_pressure}
+              Bugünün baskısı: {pressureLabels[data.summary.dominant_pressure]}
             </p>
             <p className="text-slate-700 font-medium">
               Tahmini <strong className="font-bold text-slate-900">{data.summary.estimated_saved_minutes} dakika</strong> kazandın.
@@ -147,7 +172,7 @@ export default function ResultPage() {
               <div className="bg-white border border-white rounded-2xl p-4 flex-1 min-w-[130px] flex items-center justify-between shadow-sm">
                 <div>
                   <div className="text-xs font-bold text-slate-500 mb-1">Öncelik</div>
-                  <div className="text-xl font-black text-[#ffafcc] capitalize">{data.focus.urgency}</div>
+                  <div className="text-xl font-black text-[#ffafcc]">{urgencyLabels[data.focus.urgency]}</div>
                 </div>
                 <div className="flex gap-1">
                   <div className="w-3.5 h-3.5 rounded-full bg-[#ffafcc]" />
@@ -170,7 +195,7 @@ export default function ResultPage() {
 
           <div className="relative pl-2 md:pl-4">
             <div className="space-y-6">
-              {data.timeline.map((item, index) => (
+              {sortedTimeline.map((item) => (
                 <div key={item.id} className="relative flex items-start gap-4 md:gap-6 group">
                   <div className="mt-2.5 w-12 flex-shrink-0 font-black text-slate-800 text-lg">
                     {item.time}
@@ -185,7 +210,7 @@ export default function ResultPage() {
                       </div>
                     </div>
                     <div className="hidden sm:inline-flex bg-white text-[#a2d2ff] px-4 py-1.5 rounded-full text-xs font-bold border border-[#bde0fe]/50 shadow-sm whitespace-nowrap mt-2 md:mt-0">
-                      {getDurationForTimeline(index)}
+                      {item.duration}
                     </div>
                   </div>
                 </div>
@@ -206,16 +231,26 @@ export default function ResultPage() {
               </h3>
             </div>
             <div className="flex-1 space-y-4 mb-6">
-              {visibleInsights.map((insight) => (
-                <div key={insight.id} className="flex gap-3 items-start">
-                  <div className="text-lg drop-shadow-sm mt-0.5">🔥</div>
-                  <p className="text-sm text-slate-700 font-semibold leading-relaxed">{insight.message}</p>
-                </div>
-              ))}
+              {visibleInsights.length > 0 ? (
+                visibleInsights.map((insight) => (
+                  <div key={insight.id} className="flex gap-3 items-start">
+                    <div className="text-lg drop-shadow-sm mt-0.5">{severityEmoji[insight.severity]}</div>
+                    <div>
+                      <p className="text-sm text-slate-700 font-semibold leading-relaxed">{insight.message}</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mt-1">
+                        {insight.type} • {urgencyLabels[insight.severity]}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm font-semibold text-slate-500">Şu an ek içgörü görünmüyor.</p>
+              )}
             </div>
             <button
               id="toggle-insights-btn"
               onClick={() => setShowAllInsights(!showAllInsights)}
+              disabled={data.insights.length <= 3}
               className="w-full py-3 rounded-xl bg-[#cdb4db]/20 text-[#8E7AB5] font-bold text-sm hover:bg-[#cdb4db]/30 transition-colors"
             >
               {showAllInsights ? 'Daha Az Göster' : 'Tümünü Gör'}
@@ -231,24 +266,34 @@ export default function ResultPage() {
               </h3>
             </div>
             <div className="flex-1 space-y-3 mb-6">
-              {visibleReplies.map((reply) => (
-                <div key={reply.id} className="bg-white/80 border border-white rounded-xl p-3 flex justify-between items-center shadow-sm">
-                  <p className="text-sm font-bold text-slate-700 truncate mr-2">{reply.draft}</p>
-                  <button
-                    id={`copy-reply-${reply.id}`}
-                    onClick={() => handleCopy(reply.id, reply.draft)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#ffafcc] transition-colors whitespace-nowrap bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100"
-                  >
-                    {copiedId === reply.id
-                      ? <><Check size={14} className="text-[#ffafcc]" /> Alındı</>
-                      : <><Copy size={14} /> Kopyala</>}
-                  </button>
-                </div>
-              ))}
+              {visibleReplies.length > 0 ? (
+                visibleReplies.map((reply) => (
+                  <div key={reply.id} className="bg-white/80 border border-white rounded-xl p-3 flex justify-between items-center gap-3 shadow-sm">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-wide text-[#d85888] mb-1">
+                        {reply.recipient} • {reply.context}
+                      </p>
+                      <p className="text-sm font-bold text-slate-700">{reply.draft}</p>
+                    </div>
+                    <button
+                      id={`copy-reply-${reply.id}`}
+                      onClick={() => handleCopy(reply.id, reply.draft)}
+                      className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#ffafcc] transition-colors whitespace-nowrap bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100"
+                    >
+                      {copiedId === reply.id
+                        ? <><Check size={14} className="text-[#ffafcc]" /> Alındı</>
+                        : <><Copy size={14} /> Kopyala</>}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm font-semibold text-slate-500">Hazırlanan yanıt taslağı yok.</p>
+              )}
             </div>
             <button
               id="toggle-replies-btn"
               onClick={() => setShowAllReplies(!showAllReplies)}
+              disabled={data.replies.length <= 3}
               className="w-full py-3 rounded-xl bg-[#ffafcc]/20 text-[#d85888] font-bold text-sm hover:bg-[#ffafcc]/30 transition-colors"
             >
               {showAllReplies ? 'Daha Az Göster' : 'Tüm Taslakları Gör'}
@@ -276,7 +321,9 @@ export default function ResultPage() {
               <p><span className="text-slate-500">Model:</span> {data.debug.model}</p>
               <div className="mt-4 text-[#ffc8dd]">
                 <span className="text-slate-500 block mb-2 font-bold">Warnings:</span>
-                {data.debug.warnings.map((w, i) => <div key={i}>&gt; {w}</div>)}
+                {data.debug.warnings.length > 0
+                  ? data.debug.warnings.map((w, i) => <div key={i}>&gt; {w}</div>)
+                  : <div>&gt; warning yok</div>}
               </div>
             </div>
           )}

@@ -246,7 +246,23 @@ POST /api/v1/plans
 Request body matches `POST /api/v1/compile`:
 
 {
-  "raw_input": "string"
+  "raw_input": "string",
+  "planning_date": "YYYY-MM-DD optional",
+  "customization": {
+    "name": "string",
+    "age": "string",
+    "role_or_school": "string",
+    "sleep_window": "string",
+    "school_hours": "string",
+    "work_hours": "string",
+    "productive_hours": "string",
+    "focus_duration": "string",
+    "daily_work_goal": "string",
+    "priorities": "string",
+    "focus_helpers": "string",
+    "challenges": "string",
+    "additional_notes": "string"
+  }
 }
 
 Success Response: 201 Created
@@ -255,6 +271,8 @@ Success Response: 201 Created
   "id": "string",
   "client_id": "string",
   "raw_input": "string",
+  "planning_date": "YYYY-MM-DD",
+  "customization": { },
   "compiled_plan": { },
   "created_at": "string"
 }
@@ -301,6 +319,28 @@ Success Response: 200 OK
 Backend Go Structs
 type CompileRequest struct {
     RawInput string `json:"raw_input"`
+}
+
+type SavePlanRequest struct {
+    RawInput      string            `json:"raw_input"`
+    PlanningDate  string            `json:"planning_date"`
+    Customization PlanCustomization `json:"customization"`
+}
+
+type PlanCustomization struct {
+    Name            string `json:"name"`
+    Age             string `json:"age"`
+    RoleOrSchool    string `json:"role_or_school"`
+    SleepWindow     string `json:"sleep_window"`
+    SchoolHours     string `json:"school_hours"`
+    WorkHours       string `json:"work_hours"`
+    ProductiveHours string `json:"productive_hours"`
+    FocusDuration   string `json:"focus_duration"`
+    DailyWorkGoal   string `json:"daily_work_goal"`
+    Priorities      string `json:"priorities"`
+    FocusHelpers    string `json:"focus_helpers"`
+    Challenges      string `json:"challenges"`
+    AdditionalNotes string `json:"additional_notes"`
 }
 
 type CompiledPlan struct {
@@ -370,6 +410,22 @@ export type DominantPressure = "deadline" | "social" | "errand" | "academic" | "
 
 export interface CompileRequest {
   raw_input: string;
+}
+
+export interface PlanCustomization {
+  name: string;
+  age: string;
+  role_or_school: string;
+  sleep_window: string;
+  school_hours: string;
+  work_hours: string;
+  productive_hours: string;
+  focus_duration: string;
+  daily_work_goal: string;
+  priorities: string;
+  focus_helpers: string;
+  challenges: string;
+  additional_notes: string;
 }
 
 export interface CompiledPlan {

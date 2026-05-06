@@ -58,7 +58,7 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, plan models.CompiledPlan, planningDate string) (*models.SavedPlan, error) {
+func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, plan models.CompiledPlan, planningDate string, customization models.PlanCustomization) (*models.SavedPlan, error) {
 	if err := validateClientID(clientID); err != nil {
 		return nil, err
 	}
@@ -72,6 +72,10 @@ func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, 
 	planJSON, err := json.Marshal(plan)
 	if err != nil {
 		return nil, fmt.Errorf("marshal compiled plan: %w", err)
+	}
+	customizationJSON, err := json.Marshal(customization)
+	if err != nil {
+		return nil, fmt.Errorf("marshal customization: %w", err)
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -88,9 +92,9 @@ func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, 
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO plans (id, client_id, raw_input, planning_date, compiled_plan_json, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, planID, clientID, rawInput, planningDate, string(planJSON), now); err != nil {
+		INSERT INTO plans (id, client_id, raw_input, planning_date, customization_json, compiled_plan_json, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, planID, clientID, rawInput, planningDate, string(customizationJSON), string(planJSON), now); err != nil {
 		return nil, fmt.Errorf("insert plan: %w", err)
 	}
 
@@ -138,12 +142,13 @@ func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, 
 	}
 
 	return &models.SavedPlan{
-		ID:           planID,
-		ClientID:     clientID,
-		RawInput:     rawInput,
-		PlanningDate: planningDate,
-		CompiledPlan: plan,
-		CreatedAt:    now,
+		ID:            planID,
+		ClientID:      clientID,
+		RawInput:      rawInput,
+		PlanningDate:  planningDate,
+		Customization: customization,
+		CompiledPlan:  plan,
+		CreatedAt:     now,
 	}, nil
 }
 
@@ -203,13 +208,14 @@ func (s *Store) GetPlan(ctx context.Context, clientID string, planID string) (*m
 
 	var rawInput string
 	var planJSON string
+	var customizationJSON string
 	var planningDate string
 	var createdAt string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT raw_input, planning_date, compiled_plan_json, created_at
+		SELECT raw_input, planning_date, customization_json, compiled_plan_json, created_at
 		FROM plans
 		WHERE client_id = ? AND id = ?
-	`, clientID, planID).Scan(&rawInput, &planningDate, &planJSON, &createdAt)
+	`, clientID, planID).Scan(&rawInput, &planningDate, &customizationJSON, &planJSON, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -221,14 +227,21 @@ func (s *Store) GetPlan(ctx context.Context, clientID string, planID string) (*m
 	if err := json.Unmarshal([]byte(planJSON), &plan); err != nil {
 		return nil, fmt.Errorf("unmarshal stored plan: %w", err)
 	}
+	var customization models.PlanCustomization
+	if strings.TrimSpace(customizationJSON) != "" {
+		if err := json.Unmarshal([]byte(customizationJSON), &customization); err != nil {
+			return nil, fmt.Errorf("unmarshal stored customization: %w", err)
+		}
+	}
 
 	return &models.SavedPlan{
-		ID:           planID,
-		ClientID:     clientID,
-		RawInput:     rawInput,
-		PlanningDate: planningDate,
-		CompiledPlan: plan,
-		CreatedAt:    createdAt,
+		ID:            planID,
+		ClientID:      clientID,
+		RawInput:      rawInput,
+		PlanningDate:  planningDate,
+		Customization: customization,
+		CompiledPlan:  plan,
+		CreatedAt:     createdAt,
 	}, nil
 }
 
@@ -290,6 +303,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			client_id TEXT NOT NULL,
 			raw_input TEXT NOT NULL,
 			planning_date TEXT NOT NULL,
+			customization_json TEXT NOT NULL DEFAULT '{}',
 			compiled_plan_json TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			FOREIGN KEY (client_id) REFERENCES clients(id)
@@ -320,6 +334,9 @@ func (s *Store) migrate(ctx context.Context) error {
 	}
 
 	if err := ensureColumn(ctx, s.db, "plans", "planning_date", `ALTER TABLE plans ADD COLUMN planning_date TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := ensureColumn(ctx, s.db, "plans", "customization_json", `ALTER TABLE plans ADD COLUMN customization_json TEXT NOT NULL DEFAULT '{}'`); err != nil {
 		return err
 	}
 

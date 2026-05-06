@@ -24,7 +24,7 @@ func Load() Config {
 
 	return Config{
 		Port:         getEnv("PORT", "8080"),
-		GroqModel:    getEnv("GROQ_MODEL", "llama-3.1-8b-instant"),
+		GroqModel:    getEnv("GROQ_MODEL", "openai/gpt-oss-120b"),
 		DemoMode:     parseBool(getEnv("DEMO_MODE", "true")),
 		GroqAPIKey:   getEnv("GROQ_API_KEY", ""),
 		DatabasePath: getEnv("DATABASE_PATH", "data/onenext.db"),

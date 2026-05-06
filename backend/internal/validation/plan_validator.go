@@ -2,6 +2,7 @@ package validation
 
 import (
 	"errors"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -30,14 +31,34 @@ var validInsightTypes = map[string]struct{}{
 	"risk": {},
 }
 
+var validDominantPressures = map[string]struct{}{
+	"deadline": {},
+	"social":   {},
+	"errand":   {},
+	"academic": {},
+	"work":     {},
+	"mixed":    {},
+}
+
+var durationPattern = regexp.MustCompile(`(?i)^\d+\s*(dk|dakika|saat)$`)
+
 func NormalizeAndValidateCompiledPlan(plan models.CompiledPlan) (models.CompiledPlan, error) {
 	warnings := append([]string{}, plan.Debug.Warnings...)
 
 	plan.Summary.Headline = strings.TrimSpace(plan.Summary.Headline)
+	originalDominantPressure := strings.TrimSpace(plan.Summary.DominantPressure)
+	plan.Summary.DominantPressure = normalizeDominantPressure(originalDominantPressure)
+	if plan.Summary.DominantPressure == "mixed" && originalDominantPressure != "mixed" {
+		warnings = append(warnings, "dominant_pressure was invalid and was normalized to mixed")
+	}
+	if plan.Summary.EstimatedSavedMinutes <= 0 {
+		plan.Summary.EstimatedSavedMinutes = 15
+		warnings = append(warnings, "estimated_saved_minutes was non-positive and was normalized to 15")
+	}
 	plan.Focus.ID = strings.TrimSpace(plan.Focus.ID)
 	plan.Focus.Title = strings.TrimSpace(plan.Focus.Title)
 	plan.Focus.Reason = strings.TrimSpace(plan.Focus.Reason)
-	plan.Focus.Duration = strings.TrimSpace(plan.Focus.Duration)
+	plan.Focus.Duration = normalizeDuration(strings.TrimSpace(plan.Focus.Duration))
 	plan.Focus.Urgency = normalizeUrgency(strings.TrimSpace(plan.Focus.Urgency))
 	if plan.Focus.ID == "" {
 		plan.Focus.ID = "focus-1"
@@ -97,9 +118,9 @@ func normalizeTimeline(items []models.TimelineItem, warnings []string) ([]models
 			item.Type = "personal"
 			warnings = append(warnings, "invalid timeline item type was normalized to personal")
 		}
-		if item.Duration == "" {
+		if !isValidDuration(item.Duration) {
 			item.Duration = "30 dk"
-			warnings = append(warnings, "timeline item duration was missing and was normalized to 30 dk")
+			warnings = append(warnings, "timeline item duration was invalid and was normalized to 30 dk")
 		}
 
 		item.ID, warnings = normalizeUniqueID(item.ID, "timeline", len(normalized)+1, seenIDs, warnings, "timeline item")
@@ -186,6 +207,28 @@ func normalizeUrgency(value string) string {
 		return value
 	}
 	return "medium"
+}
+
+func normalizeDominantPressure(value string) string {
+	if _, ok := validDominantPressures[value]; ok {
+		return value
+	}
+	return "mixed"
+}
+
+func normalizeDuration(value string) string {
+	if isValidDuration(value) {
+		return value
+	}
+	return ""
+}
+
+func isValidDuration(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	return durationPattern.MatchString(value)
 }
 
 func syncFocusWithTimeline(focus models.FocusAction, firstTimeline models.TimelineItem, warnings []string) (models.FocusAction, []string) {

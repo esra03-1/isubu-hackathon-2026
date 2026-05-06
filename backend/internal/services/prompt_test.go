@@ -17,6 +17,10 @@ func TestBuildPromptWithContext_IncludesRelativeDatesAndCalendarEvents(t *testin
 			Title: "Math quiz",
 			Type:  "academic",
 		},
+	}, models.PlanCustomization{
+		ProductiveHours: "10:00 - 13:00",
+		FocusDuration:   "45 dk",
+		Priorities:      "Sağlık ve dersler",
 	})
 
 	prompt := BuildPromptWithContext("I have this coming up next Tuesday.", context)
@@ -29,6 +33,16 @@ func TestBuildPromptWithContext_IncludesRelativeDatesAndCalendarEvents(t *testin
 		"tomorrow = 2026-05-13, Wednesday",
 		"next Wednesday = 2026-05-13, Wednesday",
 		"be mindful of short breaks, meals, and context-switching",
+		"Use user customization only as preference context",
+		"User customization:",
+		"Productive hours: 10:00 - 13:00",
+		"Single focus duration: 45 dk",
+		"Priorities: Sağlık ve dersler",
+		"infer the best realistic slot and include them in timeline instead of dropping them",
+		"place the untimed tasks around that event in the most sensible order",
+		"keep it out of timeline and put it in calendar_events instead",
+		`Never use "full-day", "all-day", or other vague placeholders.`,
+		"estimated_saved_minutes must be a realistic positive integer",
 		"2026-05-12 09:00: Math quiz (academic)",
 		`"calendar_events": [`,
 		`"date": "YYYY-MM-DD"`,
