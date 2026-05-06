@@ -73,7 +73,7 @@ export default function ResultPage() {
           <div className="flex items-center gap-2">
             <button
               id="new-input-btn"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/input')}
               className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#cdb4db]/30 rounded-full font-bold text-sm text-[#cdb4db] shadow-sm hover:bg-[#cdb4db]/10 transition-all"
             >
               <span>Yeni Girdi</span>
