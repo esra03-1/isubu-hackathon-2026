@@ -13,6 +13,14 @@ export default function CustomizePage() {
   const rawInput = localStorage.getItem(LAST_INPUT_KEY) ?? '';
   const hasInput = rawInput.trim().length > 0;
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const saveAndNavigate = (plan: typeof mockData) => {
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+    localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+    navigate('/loading', { state: { plan } });
+  };
 
   const handleBack = () => {
     navigate(-1);
@@ -23,18 +31,19 @@ export default function CustomizePage() {
       handleBack();
       return;
     }
-    
+
     setIsLoading(true);
-    let plan = mockData;
+    setErrorMessage(null);
     try {
-      plan = await submitPlan({ raw_input: rawInput });
-    } catch {
-      // Backend erişilemiyorsa mock data ile devam et
-    } finally {
       localStorage.setItem(LAST_INPUT_KEY, rawInput);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/loading', { state: { plan } });
+      const plan = await submitPlan({ raw_input: rawInput });
+      saveAndNavigate(plan);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Plan oluşturulamadı. Lütfen tekrar dene.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -94,6 +103,11 @@ export default function CustomizePage() {
 
       {/* Bento Form Alanları */}
       <div className="space-y-6 max-w-4xl mx-auto">
+        {errorMessage && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </div>
+        )}
         
         {/* 1. Hakkında */}
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
