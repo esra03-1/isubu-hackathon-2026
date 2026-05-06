@@ -14,12 +14,13 @@ export const mockData: CompiledPlan = {
     urgency: 'high',
   },
   timeline: [
-    { id: 't1', time: '10:00', title: 'Toplantı hazırlığı', type: 'work' },
-    { id: 't2', time: '11:00', title: 'Quiz çalış', type: 'academic' },
-    { id: 't3', time: '14:00', title: "Ali'ye mail yanıtla", type: 'meeting' },
-    { id: 't4', time: '15:00', title: 'Proje dokümantasyonu', type: 'work' },
-    { id: 't5', time: '17:00', title: 'Günün kapanışı', type: 'errand' },
+    { id: 't1', time: '10:00', title: 'Toplantı hazırlığı', type: 'work', duration: '45 dk' },
+    { id: 't2', time: '11:00', title: 'Quiz çalış', type: 'academic', duration: '45 dk' },
+    { id: 't3', time: '14:00', title: "Ali'ye mail yanıtla", type: 'meeting', duration: '20 dk' },
+    { id: 't4', time: '15:00', title: 'Proje dokümantasyonu', type: 'work', duration: '60 dk' },
+    { id: 't5', time: '17:00', title: 'Günün kapanışı', type: 'errand', duration: '20 dk' },
   ],
+  calendar_events: [],
   replies: [
     { id: 'r1', recipient: 'Ali', context: 'Gecikme', draft: "Ali'ye gecikeceğini bildir." },
     { id: 'r2', recipient: 'Melda Hoca', context: 'Dönüş', draft: 'Hocaya kısa dönüş hazırla.' },

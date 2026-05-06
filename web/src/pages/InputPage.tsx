@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
-import { compileDay } from '../api/client';
+import { submitPlan } from '../api/client';
 import { mockData } from '../mockData';
 
 const LAST_INPUT_KEY = 'onenext_last_input';
@@ -24,7 +24,7 @@ export default function InputPage() {
     setIsLoading(true);
     let plan = mockData;
     try {
-      plan = await compileDay({ raw_input: rawInput });
+      plan = await submitPlan({ raw_input: rawInput });
     } catch {
       // Backend erişilemiyorsa mock data ile devam et
     } finally {
