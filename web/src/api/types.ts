@@ -2,6 +2,7 @@ export type Urgency = "high" | "medium" | "low";
 export type TimelineType = "work" | "errand" | "meeting" | "academic" | "personal";
 export type InsightType = "prep" | "risk";
 export type DominantPressure = "deadline" | "social" | "errand" | "academic" | "work" | "mixed";
+export type CalendarEventSource = "compiled_plan" | "ai_calendar_event";
 
 export interface CompileRequest {
   raw_input: string;
@@ -29,6 +30,13 @@ export interface TimelineItem {
   duration: string;
 }
 
+export interface CompiledCalendarEvent {
+  date: string;
+  time: string;
+  title: string;
+  type: TimelineType;
+}
+
 export interface ReplyDraft {
   id: string;
   recipient: string;
@@ -54,7 +62,36 @@ export interface CompiledPlan {
   summary: Summary;
   focus: FocusAction;
   timeline: TimelineItem[];
+  calendar_events: CompiledCalendarEvent[];
   replies: ReplyDraft[];
   insights: Insight[];
   debug: DebugInfo;
+}
+
+export interface SavedPlan {
+  id: string;
+  client_id: string;
+  raw_input: string;
+  planning_date: string;
+  compiled_plan: CompiledPlan;
+  created_at: string;
+}
+
+export interface PlanSummary {
+  id: string;
+  headline: string;
+  focus: string;
+  created_at: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  client_id: string;
+  plan_id: string;
+  date: string;
+  time: string;
+  title: string;
+  type: TimelineType;
+  source: CalendarEventSource;
+  created_at: string;
 }
