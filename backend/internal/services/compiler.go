@@ -7,6 +7,7 @@ import (
 
 	"onenext/backend/internal/config"
 	"onenext/backend/internal/models"
+	"onenext/backend/internal/validation"
 )
 
 func CompileInput(ctx context.Context, cfg config.Config, rawInput string) (*models.CompiledPlan, error) {
@@ -28,10 +29,12 @@ func CompileInputWithPromptContext(ctx context.Context, cfg config.Config, rawIn
 		return nil, err
 	}
 
-	// Basic validation
-	if plan.Summary.Headline == "" && plan.Focus.Title == "" {
-		log.Printf("Invalid compiled plan (missing headline and focus): %s", rawOutput)
+	normalizedPlan, err := validation.NormalizeAndValidateCompiledPlan(plan)
+	if err != nil {
+		log.Printf("Invalid compiled plan after normalization: %v\nOutput: %s", err, rawOutput)
+		return nil, err
 	}
+	plan = normalizedPlan
 
 	plan.Debug = models.DebugInfo{
 		Model:          cfg.GroqModel,

@@ -49,3 +49,13 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - Tool used: Codex.
 - AI-assisted work: Added `docs/backend_api_handoff.md` with frontend integration instructions, curl examples, TypeScript response shapes, device id behavior, and endpoint mapping.
 - Human review: User asked for a small API handoff doc so frontend teammates can integrate without reading backend code.
+
+### Planning Date Support
+- Tool used: Codex.
+- AI-assisted work: Added optional `planning_date` support to `POST /api/v1/plans`, updated prompt context so selected-day planning is explicit, added backend tests for valid/invalid/default date behavior, and updated backend handoff documentation.
+- Human review: User approved keeping this change scoped to planning-date correctness and not adding new delete or manual calendar editing behavior.
+
+### Timeline Duration & Break-Aware Prompting
+- Tool used: Codex.
+- AI-assisted work: Added `timeline[].duration` to backend/frontend contract surfaces and updated the planning prompt so generated timelines stay mindful of short breaks, meals, and context switching instead of packing tasks back-to-back.
+- Human review: User approved adding timeline durations to support the demo UI and asked for break-aware prompting without introducing separate break event persistence.

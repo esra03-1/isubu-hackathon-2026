@@ -4,10 +4,16 @@ type CompileRequest struct {
 	RawInput string `json:"raw_input"`
 }
 
+type SavePlanRequest struct {
+	RawInput     string `json:"raw_input"`
+	PlanningDate string `json:"planning_date"`
+}
+
 type SavedPlan struct {
 	ID           string       `json:"id"`
 	ClientID     string       `json:"client_id"`
 	RawInput     string       `json:"raw_input"`
+	PlanningDate string       `json:"planning_date"`
 	CompiledPlan CompiledPlan `json:"compiled_plan"`
 	CreatedAt    string       `json:"created_at"`
 }
@@ -56,10 +62,11 @@ type FocusAction struct {
 }
 
 type TimelineItem struct {
-	ID    string `json:"id"`
-	Time  string `json:"time"`
-	Title string `json:"title"`
-	Type  string `json:"type"`
+	ID       string `json:"id"`
+	Time     string `json:"time"`
+	Title    string `json:"title"`
+	Type     string `json:"type"`
+	Duration string `json:"duration"`
 }
 
 type CompiledCalendarEvent struct {

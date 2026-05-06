@@ -88,9 +88,9 @@ func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, 
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO plans (id, client_id, raw_input, compiled_plan_json, created_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, planID, clientID, rawInput, string(planJSON), now); err != nil {
+		INSERT INTO plans (id, client_id, raw_input, planning_date, compiled_plan_json, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, planID, clientID, rawInput, planningDate, string(planJSON), now); err != nil {
 		return nil, fmt.Errorf("insert plan: %w", err)
 	}
 
@@ -141,6 +141,7 @@ func (s *Store) SavePlan(ctx context.Context, clientID string, rawInput string, 
 		ID:           planID,
 		ClientID:     clientID,
 		RawInput:     rawInput,
+		PlanningDate: planningDate,
 		CompiledPlan: plan,
 		CreatedAt:    now,
 	}, nil
@@ -202,12 +203,13 @@ func (s *Store) GetPlan(ctx context.Context, clientID string, planID string) (*m
 
 	var rawInput string
 	var planJSON string
+	var planningDate string
 	var createdAt string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT raw_input, compiled_plan_json, created_at
+		SELECT raw_input, planning_date, compiled_plan_json, created_at
 		FROM plans
 		WHERE client_id = ? AND id = ?
-	`, clientID, planID).Scan(&rawInput, &planJSON, &createdAt)
+	`, clientID, planID).Scan(&rawInput, &planningDate, &planJSON, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -224,6 +226,7 @@ func (s *Store) GetPlan(ctx context.Context, clientID string, planID string) (*m
 		ID:           planID,
 		ClientID:     clientID,
 		RawInput:     rawInput,
+		PlanningDate: planningDate,
 		CompiledPlan: plan,
 		CreatedAt:    createdAt,
 	}, nil
@@ -286,6 +289,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			id TEXT PRIMARY KEY,
 			client_id TEXT NOT NULL,
 			raw_input TEXT NOT NULL,
+			planning_date TEXT NOT NULL,
 			compiled_plan_json TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			FOREIGN KEY (client_id) REFERENCES clients(id)
@@ -313,6 +317,43 @@ func (s *Store) migrate(ctx context.Context) error {
 		if _, err := s.db.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("run migration: %w", err)
 		}
+	}
+
+	if err := ensureColumn(ctx, s.db, "plans", "planning_date", `ALTER TABLE plans ADD COLUMN planning_date TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureColumn(ctx context.Context, db *sql.DB, table string, column string, statement string) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return fmt.Errorf("inspect table %s: %w", table, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var columnType string
+		var notNull int
+		var defaultValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("scan table info %s: %w", table, err)
+		}
+		if name == column {
+			return nil
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate table info %s: %w", table, err)
+	}
+
+	if _, err := db.ExecContext(ctx, statement); err != nil {
+		return fmt.Errorf("add column %s.%s: %w", table, column, err)
 	}
 
 	return nil

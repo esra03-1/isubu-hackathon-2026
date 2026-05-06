@@ -26,6 +26,7 @@ export interface TimelineItem {
   time: string;
   title: string;
   type: TimelineType;
+  duration: string;
 }
 
 export interface ReplyDraft {

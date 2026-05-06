@@ -190,7 +190,8 @@ Success Response: 200 OK
       "id": "string",
       "time": "HH:MM",
       "title": "string",
-      "type": "work|errand|meeting|academic|personal"
+      "type": "work|errand|meeting|academic|personal",
+      "duration": "string"
     }
   ],
   "calendar_events": [
@@ -327,10 +328,11 @@ type FocusAction struct {
 }
 
 type TimelineItem struct {
-    ID    string `json:"id"`
-    Time  string `json:"time"`
-    Title string `json:"title"`
-    Type  string `json:"type"`
+    ID       string `json:"id"`
+    Time     string `json:"time"`
+    Title    string `json:"title"`
+    Type     string `json:"type"`
+    Duration string `json:"duration"`
 }
 
 type CompiledCalendarEvent struct {
@@ -398,6 +400,7 @@ export interface TimelineItem {
   time: string;
   title: string;
   type: TimelineType;
+  duration: string;
 }
 
 export interface ReplyDraft {

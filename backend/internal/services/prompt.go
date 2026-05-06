@@ -9,11 +9,13 @@ import (
 )
 
 type PromptContext struct {
-	CurrentDate       string
-	CurrentWeekday    string
-	Timezone          string
-	RelativeDateHints []RelativeDateHint
-	CalendarEvents    []CalendarEventPromptContext
+	RealCurrentDate    string
+	RealCurrentWeekday string
+	PlanningDate       string
+	PlanningWeekday    string
+	Timezone           string
+	RelativeDateHints  []RelativeDateHint
+	CalendarEvents     []CalendarEventPromptContext
 }
 
 type RelativeDateHint struct {
@@ -47,10 +49,11 @@ Requirements:
 - Infer realistic times only when needed.
 - Prefer the most concrete urgent action as focus.
 - Create a timeline from known times first, then inferred order.
-- Put today's executable plan in timeline.
+- Space demanding tasks realistically and be mindful of short breaks, meals, and context-switching so the day plan does not become an uninterrupted wall of tasks.
+- Put the planning date's executable plan in timeline.
 - Put future or explicitly dated obligations in calendar_events.
 - Do not include ids inside calendar_events; the backend generates those ids.
-- Use the provided date and internal calendar context when resolving relative dates or scheduling around known OneNext events.
+- Use the provided planning date, real current date, and internal calendar context when resolving relative dates or scheduling around known OneNext events.
 - Draft short, natural Turkish replies if the input implies a message needs a response.
 - Flag missing information or deadline risks in insights.
 - Never invent important facts not present in input.
@@ -75,7 +78,8 @@ EXPECTED JSON SCHEMA:
       "id": "string",
       "time": "HH:MM",
       "title": "string",
-      "type": "work|errand|meeting|academic|personal"
+      "type": "work|errand|meeting|academic|personal",
+      "duration": "string"
     }
   ],
   "calendar_events": [
@@ -113,7 +117,7 @@ Here is the daily input:
 ` + rawInput
 }
 
-func BuildPromptContext(now time.Time, timezone string, events []models.CalendarEvent) PromptContext {
+func BuildPromptContext(now time.Time, planningDate string, timezone string, events []models.CalendarEvent) PromptContext {
 	weekdayNames := map[time.Weekday]string{
 		time.Sunday:    "Sunday",
 		time.Monday:    "Monday",
@@ -124,16 +128,23 @@ func BuildPromptContext(now time.Time, timezone string, events []models.Calendar
 		time.Saturday:  "Saturday",
 	}
 
+	planningDay := now
+	if planningDate != "" {
+		if parsed, err := time.ParseInLocation("2006-01-02", planningDate, now.Location()); err == nil {
+			planningDay = parsed
+		}
+	}
+
 	hints := []RelativeDateHint{
 		{
 			Label:   "today",
-			Date:    now.Format("2006-01-02"),
-			Weekday: weekdayNames[now.Weekday()],
+			Date:    planningDay.Format("2006-01-02"),
+			Weekday: weekdayNames[planningDay.Weekday()],
 		},
 		{
 			Label:   "tomorrow",
-			Date:    now.AddDate(0, 0, 1).Format("2006-01-02"),
-			Weekday: weekdayNames[now.AddDate(0, 0, 1).Weekday()],
+			Date:    planningDay.AddDate(0, 0, 1).Format("2006-01-02"),
+			Weekday: weekdayNames[planningDay.AddDate(0, 0, 1).Weekday()],
 		},
 	}
 
@@ -146,7 +157,7 @@ func BuildPromptContext(now time.Time, timezone string, events []models.Calendar
 		time.Saturday,
 		time.Sunday,
 	} {
-		date := nextWeekday(now, weekday)
+		date := nextWeekday(planningDay, weekday)
 		hints = append(hints, RelativeDateHint{
 			Label:   "next " + weekdayNames[weekday],
 			Date:    date.Format("2006-01-02"),
@@ -165,25 +176,34 @@ func BuildPromptContext(now time.Time, timezone string, events []models.Calendar
 	}
 
 	return PromptContext{
-		CurrentDate:       now.Format("2006-01-02"),
-		CurrentWeekday:    weekdayNames[now.Weekday()],
-		Timezone:          timezone,
-		RelativeDateHints: hints,
-		CalendarEvents:    calendarEvents,
+		RealCurrentDate:    now.Format("2006-01-02"),
+		RealCurrentWeekday: weekdayNames[now.Weekday()],
+		PlanningDate:       planningDay.Format("2006-01-02"),
+		PlanningWeekday:    weekdayNames[planningDay.Weekday()],
+		Timezone:           timezone,
+		RelativeDateHints:  hints,
+		CalendarEvents:     calendarEvents,
 	}
 }
 
 func formatPromptContext(promptContext PromptContext) string {
-	if promptContext.CurrentDate == "" && len(promptContext.CalendarEvents) == 0 {
+	if promptContext.RealCurrentDate == "" && promptContext.PlanningDate == "" && len(promptContext.CalendarEvents) == 0 {
 		return "Calendar context: none provided."
 	}
 
 	var builder strings.Builder
 	builder.WriteString("Calendar context:\n")
-	if promptContext.CurrentDate != "" {
-		builder.WriteString(fmt.Sprintf("- Current date: %s", promptContext.CurrentDate))
-		if promptContext.CurrentWeekday != "" {
-			builder.WriteString(", " + promptContext.CurrentWeekday)
+	if promptContext.RealCurrentDate != "" {
+		builder.WriteString(fmt.Sprintf("- Real current date: %s", promptContext.RealCurrentDate))
+		if promptContext.RealCurrentWeekday != "" {
+			builder.WriteString(", " + promptContext.RealCurrentWeekday)
+		}
+		builder.WriteString("\n")
+	}
+	if promptContext.PlanningDate != "" {
+		builder.WriteString(fmt.Sprintf("- Planning date: %s", promptContext.PlanningDate))
+		if promptContext.PlanningWeekday != "" {
+			builder.WriteString(", " + promptContext.PlanningWeekday)
 		}
 		builder.WriteString("\n")
 	}

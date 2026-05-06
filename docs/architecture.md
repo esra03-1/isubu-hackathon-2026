@@ -173,7 +173,7 @@ X-OneNext-Client-ID: string
 
 The frontend generates this id once and stores it in localStorage. This is not authentication; it is device-scoped demo persistence.
 
-Saved timeline items become internal calendar events for the current planning date. Model-produced `calendar_events` become dated internal calendar events with backend-generated ids. External calendar sync remains out of scope.
+Saved timeline items become internal calendar events for the selected planning date, or the backend's current local date when no planning date is provided. Model-produced `calendar_events` become dated internal calendar events with backend-generated ids. External calendar sync remains out of scope.
 
 7. LLM Integration
 
@@ -217,7 +217,7 @@ Flag missing information as insight warnings.
 Avoid unsupported claims.
 Add warnings to debug when assumptions are made.
 
-For persisted plan creation, `POST /api/v1/plans` fetches upcoming OneNext calendar events for the anonymous device id, computes relative date hints in Go, and injects them into the prompt before calling Groq. This avoids extra model/tool rounds for phrases like "next Tuesday."
+For persisted plan creation, `POST /api/v1/plans` fetches upcoming OneNext calendar events for the anonymous device id, anchors relative date hints to the selected planning date, and injects both planning-date context and the real current date into the prompt before calling Groq. This avoids extra model/tool rounds for phrases like "next Tuesday" while keeping "today" versus selected-day planning explicit.
 9. Fallback Strategy
 
 Fallback is required.

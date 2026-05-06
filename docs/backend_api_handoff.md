@@ -68,9 +68,12 @@ Request:
 
 ```json
 {
-  "raw_input": "Tomorrow I have a quiz and need to reply to Ali."
+  "raw_input": "Tomorrow I have a quiz and need to reply to Ali.",
+  "planning_date": "2026-05-12"
 }
 ```
+
+`planning_date` is optional. Use `YYYY-MM-DD` when the user is planning a selected calendar day. If omitted, the backend defaults to the server's current local date.
 
 Response:
 
@@ -79,6 +82,7 @@ Response:
   "id": "plan_backend_id",
   "client_id": "client_xxx",
   "raw_input": "Tomorrow I have a quiz and need to reply to Ali.",
+  "planning_date": "2026-05-12",
   "compiled_plan": {
     "summary": {},
     "focus": {},
@@ -95,6 +99,16 @@ Response:
 Render `response.compiled_plan` in the result screen.
 
 Curl:
+
+```sh
+curl -sS http://localhost:8080/api/v1/plans \
+  -H "Content-Type: application/json" \
+  -H "X-OneNext-Client-ID: client_demo" \
+  -d '{"raw_input":"Tomorrow I have a quiz and need to reply to Ali.","planning_date":"2026-05-12"}' \
+  | jq
+```
+
+Curl with default planning date:
 
 ```sh
 curl -sS http://localhost:8080/api/v1/plans \
@@ -186,7 +200,7 @@ Response:
 
 Event sources:
 
-- `compiled_plan`: event was derived from today's `timeline[]`.
+- `compiled_plan`: event was derived from `timeline[]` for the selected `planning_date` or the backend's current local date if omitted.
 - `ai_calendar_event`: event was explicitly produced by the AI in `calendar_events[]`.
 
 Curl:
@@ -245,6 +259,7 @@ export interface TimelineItem {
   time: string;
   title: string;
   type: TimelineType;
+  duration: string;
 }
 
 export interface CompiledCalendarEvent {
@@ -289,6 +304,7 @@ export interface SavedPlan {
   id: string;
   client_id: string;
   raw_input: string;
+  planning_date: string;
   compiled_plan: CompiledPlan;
   created_at: string;
 }
@@ -333,7 +349,19 @@ Common frontend-relevant errors:
 - `invalid_request`: request body was invalid JSON.
 - `empty_raw_input`: input was empty.
 - `raw_input_too_long`: input exceeded backend limit.
+- `invalid_planning_date`: `planning_date` did not use `YYYY-MM-DD`.
 - `invalid_date_range`: calendar start/end date was missing or malformed.
+
+## Frontend Notes
+
+The main plan payload already includes everything needed for the result screen:
+
+- `timeline[]` for the day plan
+- `insights[]` for the insights card/list
+- `replies[]` for reply drafts
+- `debug` for the debug panel
+
+No extra insights or replies endpoints are required for the demo flow.
 
 ## Local E2E Test
 

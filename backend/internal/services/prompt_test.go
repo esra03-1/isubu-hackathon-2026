@@ -10,7 +10,7 @@ import (
 
 func TestBuildPromptWithContext_IncludesRelativeDatesAndCalendarEvents(t *testing.T) {
 	now := time.Date(2026, time.May, 6, 13, 0, 0, 0, time.UTC)
-	context := BuildPromptContext(now, "Europe/Istanbul", []models.CalendarEvent{
+	context := BuildPromptContext(now, "2026-05-12", "Europe/Istanbul", []models.CalendarEvent{
 		{
 			Date:  "2026-05-12",
 			Time:  "09:00",
@@ -22,12 +22,17 @@ func TestBuildPromptWithContext_IncludesRelativeDatesAndCalendarEvents(t *testin
 	prompt := BuildPromptWithContext("I have this coming up next Tuesday.", context)
 
 	expectedSnippets := []string{
-		"Current date: 2026-05-06, Wednesday",
+		"Real current date: 2026-05-06, Wednesday",
+		"Planning date: 2026-05-12, Tuesday",
 		"Timezone: Europe/Istanbul",
-		"next Tuesday = 2026-05-12, Tuesday",
+		"today = 2026-05-12, Tuesday",
+		"tomorrow = 2026-05-13, Wednesday",
+		"next Wednesday = 2026-05-13, Wednesday",
+		"be mindful of short breaks, meals, and context-switching",
 		"2026-05-12 09:00: Math quiz (academic)",
 		`"calendar_events": [`,
 		`"date": "YYYY-MM-DD"`,
+		`"duration": "string"`,
 		"I have this coming up next Tuesday.",
 	}
 

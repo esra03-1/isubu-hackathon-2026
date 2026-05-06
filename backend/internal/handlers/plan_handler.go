@@ -32,7 +32,7 @@ func (h PlanHandler) Save(c *gin.Context) {
 		return
 	}
 
-	var request models.CompileRequest
+	var request models.SavePlanRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		writeError(c, http.StatusBadRequest, "invalid_request", "Request body must be valid JSON with raw_input.")
 		return
@@ -55,17 +55,30 @@ func (h PlanHandler) Save(c *gin.Context) {
 		return
 	}
 	planningDate := now.Format("2006-01-02")
+	if request.PlanningDate != "" {
+		planningDate = strings.TrimSpace(request.PlanningDate)
+		if !validDate(planningDate) {
+			writeError(c, http.StatusBadRequest, "invalid_planning_date", "planning_date must use YYYY-MM-DD.")
+			return
+		}
+	}
 
 	plan := services.DemoPlan(h.Cfg.GroqModel)
 	if !h.Cfg.DemoMode {
-		contextEndDate := now.AddDate(0, 0, 30).Format("2006-01-02")
+		planningDay, err := time.ParseInLocation("2006-01-02", planningDate, now.Location())
+		if err != nil {
+			writeError(c, http.StatusInternalServerError, "invalid_planning_date", "planning_date could not be resolved.")
+			return
+		}
+
+		contextEndDate := planningDay.AddDate(0, 0, 30).Format("2006-01-02")
 		events, err := h.Store.ListCalendarEvents(c.Request.Context(), clientID, planningDate, contextEndDate)
 		if err != nil {
 			writeError(c, http.StatusInternalServerError, "calendar_context_failed", "Could not prepare calendar context.")
 			return
 		}
 
-		promptContext := services.BuildPromptContext(now, h.Cfg.Timezone, events)
+		promptContext := services.BuildPromptContext(now, planningDate, h.Cfg.Timezone, events)
 		compiledPlan, err := services.CompileInputWithPromptContext(c.Request.Context(), h.Cfg, rawInput, promptContext)
 		if err != nil {
 			log.Printf("Compilation failed during save: %v", err)
