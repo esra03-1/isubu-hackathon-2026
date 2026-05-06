@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	"onenext/backend/internal/config"
 	"onenext/backend/internal/models"
 	"onenext/backend/internal/services"
 )
@@ -13,11 +15,11 @@ import (
 const MaxRawInputLength = 12000
 
 type CompileHandler struct {
-	Model string
+	Cfg config.Config
 }
 
-func NewCompileHandler(model string) CompileHandler {
-	return CompileHandler{Model: model}
+func NewCompileHandler(cfg config.Config) CompileHandler {
+	return CompileHandler{Cfg: cfg}
 }
 
 func Health(c *gin.Context) {
@@ -42,7 +44,21 @@ func (h CompileHandler) Compile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, services.DemoPlan(h.Model))
+	if h.Cfg.DemoMode {
+		c.JSON(http.StatusOK, services.DemoPlan(h.Cfg.GroqModel))
+		return
+	}
+
+	plan, err := services.CompileInput(c.Request.Context(), h.Cfg, rawInput)
+	if err != nil {
+		log.Printf("Compilation failed: %v", err)
+		demo := services.DemoPlan(h.Cfg.GroqModel)
+		demo.Debug.FallbackUsed = true
+		c.JSON(http.StatusOK, demo)
+		return
+	}
+
+	c.JSON(http.StatusOK, plan)
 }
 
 func writeError(c *gin.Context, status int, code string, message string) {

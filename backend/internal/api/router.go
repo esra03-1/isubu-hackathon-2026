@@ -14,7 +14,7 @@ func NewRouter(cfg config.Config) *gin.Engine {
 
 	api := router.Group("/api/v1")
 	{
-		compileHandler := handlers.NewCompileHandler(cfg.GroqModel)
+		compileHandler := handlers.NewCompileHandler(cfg)
 		api.GET("/health", handlers.Health)
 		api.POST("/compile", compileHandler.Compile)
 	}
