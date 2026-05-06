@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, FileText, Loader2 } from 'lucide-react';
+import { Sparkles, FileText } from 'lucide-react';
 import { compileDay } from '../api/client';
 import { mockData, SAMPLE_INPUT } from '../mockData';
 
@@ -20,20 +20,17 @@ export default function InputPage() {
     if (!inputText.trim()) return;
     setIsLoading(true);
     setError(null);
+    let plan = mockData;
     try {
-      const result = await compileDay({ raw_input: inputText });
-      localStorage.setItem(LAST_INPUT_KEY, inputText);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(result));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/result', { state: { plan: result } });
+      plan = await compileDay({ raw_input: inputText });
     } catch {
       // Backend erişilemiyorsa mock data ile devam et
-      localStorage.setItem(LAST_INPUT_KEY, inputText);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(mockData));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/result', { state: { plan: mockData } });
     } finally {
-      setIsLoading(false);
+      localStorage.setItem(LAST_INPUT_KEY, inputText);
+      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+      // Loading ekranına geç, plan oradan result'a taşınır
+      navigate('/loading', { state: { plan } });
     }
   };
 
@@ -89,11 +86,7 @@ export default function InputPage() {
               disabled={isLoading || !inputText.trim()}
               className="flex-[2] flex items-center justify-center gap-2 py-4 px-6 rounded-full bg-[#a2d2ff] text-slate-900 font-extrabold text-lg shadow-lg hover:scale-[1.02] hover:shadow-xl hover:bg-[#8ec4f5] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (
-                <><Loader2 className="animate-spin" size={24} /> Derleniyor...</>
-              ) : (
-                <><Sparkles size={24} /> Günü Derle</>
-              )}
+              <Sparkles size={24} /> Günü Derle
             </button>
           </div>
         </div>
