@@ -18,6 +18,9 @@ build/
 # Vite / React
 *.local
 
+# Local planning notes
+TEMP_calendar_persistence_plan.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
