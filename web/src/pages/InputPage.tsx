@@ -36,8 +36,8 @@ export default function InputPage() {
   };
 
   const handleCustomize = () => {
-    // TODO: Kişiselleştirme ekranı henüz tanımlanmadı
-    alert('Kişiselleştirme yakında geliyor! 🐾');
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    navigate('/customize');
   };
 
   return (
