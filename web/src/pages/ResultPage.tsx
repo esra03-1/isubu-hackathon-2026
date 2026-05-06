@@ -169,13 +169,9 @@ export default function ResultPage() {
           </div>
 
           <div className="relative pl-2 md:pl-4">
-            <div className="absolute left-[23px] top-4 bottom-4 w-[3px] bg-gradient-to-b from-[#cdb4db] to-[#a2d2ff]" />
             <div className="space-y-6">
               {data.timeline.map((item, index) => (
                 <div key={item.id} className="relative flex items-start gap-4 md:gap-6 group">
-                  <div className="mt-2.5 w-7 h-7 rounded-full bg-white border-4 border-[#cdb4db] flex-shrink-0 z-10 shadow-sm group-hover:scale-110 transition-transform">
-                    <div className="w-2 h-2 bg-[#a2d2ff] rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
-                  </div>
                   <div className="mt-2.5 w-12 flex-shrink-0 font-black text-slate-800 text-lg">
                     {item.time}
                   </div>
