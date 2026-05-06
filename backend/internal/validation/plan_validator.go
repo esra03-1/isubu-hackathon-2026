@@ -64,7 +64,14 @@ func NormalizeAndValidateCompiledPlan(plan models.CompiledPlan) (models.Compiled
 
 	plan.Debug.Warnings = warnings
 
-	if plan.Summary.Headline == "" || plan.Focus.Title == "" || len(plan.Timeline) == 0 {
+	if len(plan.Timeline) == 0 {
+		return plan, ErrInvalidCompiledPlan
+	}
+
+	plan.Focus, warnings = syncFocusWithTimeline(plan.Focus, plan.Timeline[0], warnings)
+	plan.Debug.Warnings = warnings
+
+	if plan.Summary.Headline == "" || plan.Focus.Title == "" {
 		return plan, ErrInvalidCompiledPlan
 	}
 
@@ -91,7 +98,8 @@ func normalizeTimeline(items []models.TimelineItem, warnings []string) ([]models
 			warnings = append(warnings, "invalid timeline item type was normalized to personal")
 		}
 		if item.Duration == "" {
-			warnings = append(warnings, "timeline item duration was missing")
+			item.Duration = "30 dk"
+			warnings = append(warnings, "timeline item duration was missing and was normalized to 30 dk")
 		}
 
 		item.ID, warnings = normalizeUniqueID(item.ID, "timeline", len(normalized)+1, seenIDs, warnings, "timeline item")
@@ -178,6 +186,28 @@ func normalizeUrgency(value string) string {
 		return value
 	}
 	return "medium"
+}
+
+func syncFocusWithTimeline(focus models.FocusAction, firstTimeline models.TimelineItem, warnings []string) (models.FocusAction, []string) {
+	if focus.ID == "" {
+		focus.ID = "focus-1"
+	}
+	if focus.Title != firstTimeline.Title {
+		warnings = append(warnings, "focus title was synchronized with the first timeline item")
+	}
+	if focus.Duration != firstTimeline.Duration {
+		warnings = append(warnings, "focus duration was synchronized with the first timeline item")
+	}
+
+	focus.Title = firstTimeline.Title
+	focus.Duration = firstTimeline.Duration
+	focus.Urgency = normalizeUrgency(focus.Urgency)
+	if strings.TrimSpace(focus.Reason) == "" {
+		focus.Reason = "Zaman akisinin ilk adimi oldugu icin once buna odaklan."
+		warnings = append(warnings, "focus reason was missing and was normalized")
+	}
+
+	return focus, warnings
 }
 
 func normalizeUniqueID(current string, prefix string, index int, seenIDs map[string]struct{}, warnings []string, label string) (string, []string) {

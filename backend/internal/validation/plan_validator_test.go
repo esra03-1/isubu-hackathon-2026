@@ -13,7 +13,7 @@ func TestNormalizeAndValidateCompiledPlan_NormalizesIDsAndCalendarEventTypes(t *
 			Headline: "Bugunun plani",
 		},
 		Focus: models.FocusAction{
-			Title:   "Derse basla",
+			Title:   "Eski odak",
 			Urgency: "urgent",
 		},
 		Timeline: []models.TimelineItem{
@@ -41,6 +41,12 @@ func TestNormalizeAndValidateCompiledPlan_NormalizesIDsAndCalendarEventTypes(t *
 	if normalized.Focus.ID == "" {
 		t.Fatalf("Expected missing focus id to be normalized")
 	}
+	if normalized.Focus.Title != normalized.Timeline[0].Title {
+		t.Fatalf("Expected focus title to match first timeline item, got focus=%s timeline=%s", normalized.Focus.Title, normalized.Timeline[0].Title)
+	}
+	if normalized.Focus.Duration != normalized.Timeline[0].Duration {
+		t.Fatalf("Expected focus duration to match first timeline item, got focus=%s timeline=%s", normalized.Focus.Duration, normalized.Timeline[0].Duration)
+	}
 	if normalized.Focus.Urgency != "medium" {
 		t.Fatalf("Expected invalid focus urgency to default to medium, got %s", normalized.Focus.Urgency)
 	}
@@ -52,6 +58,9 @@ func TestNormalizeAndValidateCompiledPlan_NormalizesIDsAndCalendarEventTypes(t *
 	}
 	if normalized.Timeline[0].Duration != "45 dk" {
 		t.Fatalf("Expected timeline duration to be preserved, got %s", normalized.Timeline[0].Duration)
+	}
+	if normalized.Timeline[1].Duration != "30 dk" {
+		t.Fatalf("Expected missing timeline duration to default to 30 dk, got %s", normalized.Timeline[1].Duration)
 	}
 	if len(normalized.CalendarEvents) != 1 {
 		t.Fatalf("Expected invalid calendar event to be skipped, got %+v", normalized.CalendarEvents)
