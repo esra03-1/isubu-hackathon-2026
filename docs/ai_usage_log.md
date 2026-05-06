@@ -18,3 +18,8 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - Tool used: Codex.
 - AI-assisted work: Added a repo-local PR workflow skill under `.agents/skills/pr-workflow/` so AI tools and teammates can follow the same branch, commit, check, and PR process.
 - Human review: Workflow was based on the user-provided technical requirements and kept separate from product source code.
+
+### Backend Skeleton
+- Tool used: Codex.
+- AI-assisted work: Scaffolded the Go/Gin backend skeleton with health and compile endpoints, PRD-shaped structs, request validation, and demo fallback JSON.
+- Human review: Implementation should be reviewed against `docs/prd.md` before adding Groq integration.
