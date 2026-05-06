@@ -69,11 +69,18 @@ Request:
 ```json
 {
   "raw_input": "Tomorrow I have a quiz and need to reply to Ali.",
-  "planning_date": "2026-05-12"
+  "planning_date": "2026-05-12",
+  "customization": {
+    "name": "Ayşe",
+    "productive_hours": "10:00 - 13:00",
+    "focus_duration": "45 dk",
+    "priorities": "Dersler ve sağlık"
+  }
 }
 ```
 
 `planning_date` is optional. Use `YYYY-MM-DD` when the user is planning a selected calendar day. If omitted, the backend defaults to the server's current local date.
+`customization` is optional. Send the fields collected on the customize page; empty fields can be omitted or sent as empty strings. The backend stores the object with the plan and injects non-empty values into the planning prompt.
 
 Response:
 
@@ -83,6 +90,12 @@ Response:
   "client_id": "client_xxx",
   "raw_input": "Tomorrow I have a quiz and need to reply to Ali.",
   "planning_date": "2026-05-12",
+  "customization": {
+    "name": "Ayşe",
+    "productive_hours": "10:00 - 13:00",
+    "focus_duration": "45 dk",
+    "priorities": "Dersler ve sağlık"
+  },
   "compiled_plan": {
     "summary": {},
     "focus": {},
@@ -300,11 +313,28 @@ export interface CompiledPlan {
   debug: DebugInfo;
 }
 
+export interface PlanCustomization {
+  name: string;
+  age: string;
+  role_or_school: string;
+  sleep_window: string;
+  school_hours: string;
+  work_hours: string;
+  productive_hours: string;
+  focus_duration: string;
+  daily_work_goal: string;
+  priorities: string;
+  focus_helpers: string;
+  challenges: string;
+  additional_notes: string;
+}
+
 export interface SavedPlan {
   id: string;
   client_id: string;
   raw_input: string;
   planning_date: string;
+  customization: PlanCustomization;
   compiled_plan: CompiledPlan;
   created_at: string;
 }

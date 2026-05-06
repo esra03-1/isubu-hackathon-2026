@@ -64,3 +64,8 @@ This file tracks meaningful AI-assisted work for SolveX AI Hackathon 2026 withou
 - Tool used: Google Antigravity.
 - AI-assisted work: Converted the prototype `CustomizeScreen` into a React Router page (`web/src/pages/CustomizePage.tsx`), updated `InputPage.tsx` to handle the routing and state correctly, and removed misaligned timeline dots from `ResultPage.tsx` per user feedback.
 - Human review: User provided the prototype UI code and requested the integration and subsequent style fix.
+
+### Customize Data Persistence & Prompt Context
+- Tool used: Codex.
+- AI-assisted work: Wired customize form fields into the plan submission flow, stored customization JSON with saved plans, and injected non-empty customization values into the planning prompt as preference context.
+- Human review: User requested making the personalize-day button work by saving existing frontend fields to the database and using them in the prompt.

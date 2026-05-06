@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Loader2, Menu, CircleDashed, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, Menu, CircleDashed, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { submitPlan, type PlanRequest } from '../api/client';
 import type { CompiledPlan } from '../api/types';
 import { mockData } from '../mockData';
 
+const LAST_INPUT_KEY = 'onenext_last_input';
 const LAST_PLAN_KEY = 'onenext_last_plan';
+const LAST_TS_KEY = 'onenext_last_ts';
 
 const steps = [
   { id: 1, title: 'Girdin analiz ediliyor', desc: 'Notların okunuyor ve anlaşılmaya çalışılıyor...', icon: '📝', colorClass: 'bg-[#cdb4db]', textClass: 'text-[#8E7AB5]' },
@@ -15,35 +18,40 @@ const steps = [
   { id: 6, title: 'Planın tamamlanıyor', desc: 'Son kontroller yapılıyor...', icon: '✅', colorClass: 'bg-[#ffafcc]', textClass: 'text-[#d85888]' },
 ];
 
-const TOTAL_DURATION = 4500;
+const MIN_LOADING_DURATION = 4500;
+const COMPLETE_HOLD_DURATION = 500;
+
+type LoadingState = {
+  plan?: CompiledPlan;
+  request?: PlanRequest;
+} | null;
+
+function readFallbackPlan(): CompiledPlan {
+  const saved = localStorage.getItem(LAST_PLAN_KEY);
+  if (saved) {
+    try {
+      return JSON.parse(saved) as CompiledPlan;
+    } catch {
+      // Ignore malformed local state and use demo data.
+    }
+  }
+
+  return mockData;
+}
 
 export default function LoadingPage() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const plan = (() => {
-    const fromState = (location.state as { plan?: CompiledPlan } | null)?.plan;
-    if (fromState) {
-      return fromState;
-    }
-
-    const saved = localStorage.getItem(LAST_PLAN_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved) as CompiledPlan;
-      } catch {
-        // Ignore malformed local state and use demo data.
-      }
-    }
-
-    return mockData;
-  })();
+  const [loadingState] = useState(() => location.state as LoadingState);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const stepDuration = TOTAL_DURATION / steps.length;
+    let cancelled = false;
+    const startTime = Date.now();
+    const stepDuration = MIN_LOADING_DURATION / steps.length;
 
     const stepInterval = setInterval(() => {
       setCurrentStepIndex((prev) => {
@@ -53,23 +61,55 @@ export default function LoadingPage() {
       });
     }, stepDuration);
 
-    const startTime = Date.now();
     const progressInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const current = Math.min(100, Math.floor((elapsed / TOTAL_DURATION) * 100));
+      const current = Math.min(95, Math.floor((elapsed / MIN_LOADING_DURATION) * 100));
       setProgress(current);
-
-      if (current >= 100) {
-        clearInterval(progressInterval);
-        setTimeout(() => navigate('/result', { state: { plan } }), 500);
-      }
     }, 50);
 
+    const finish = async () => {
+      try {
+        const plan = loadingState?.request
+          ? await submitPlan(loadingState.request)
+          : loadingState?.plan ?? readFallbackPlan();
+
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, MIN_LOADING_DURATION - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+
+        if (cancelled) return;
+        clearInterval(stepInterval);
+        clearInterval(progressInterval);
+        localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+        localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+        setProgress(100);
+        setTimeout(() => {
+          if (!cancelled) {
+            navigate('/result', { state: { plan } });
+          }
+        }, COMPLETE_HOLD_DURATION);
+      } catch (error) {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, MIN_LOADING_DURATION - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+
+        if (cancelled) return;
+        clearInterval(stepInterval);
+        clearInterval(progressInterval);
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Plan oluşturulamadı. Lütfen tekrar dene.'
+        );
+      }
+    };
+
+    void finish();
+
     return () => {
+      cancelled = true;
       clearInterval(stepInterval);
       clearInterval(progressInterval);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadingState, navigate]);
 
   return (
     <div className="min-h-screen bg-white p-4 md:p-8 font-sans text-slate-900 flex flex-col">
@@ -105,6 +145,17 @@ export default function LoadingPage() {
           <p className="text-slate-500 font-medium text-center">
             Dağınık bilgini anlamlandırıp,<br />en iyi planı oluşturuyoruz.
           </p>
+          {errorMessage && (
+            <div className="mt-5 w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {errorMessage}
+              <button
+                onClick={() => navigate('/', { state: { rawInput: localStorage.getItem(LAST_INPUT_KEY) ?? '' } })}
+                className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                <ArrowLeft size={16} /> Ana sayfaya dön
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Loading Steps */}

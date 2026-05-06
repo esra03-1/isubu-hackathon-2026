@@ -143,7 +143,7 @@ func TestPlansEndpoint_SaveListGetAndCalendar(t *testing.T) {
 	clientID := "test-client-1"
 	today := time.Now().UTC().Format("2006-01-02")
 
-	saveReq := httptest.NewRequest(http.MethodPost, "/api/v1/plans", strings.NewReader(`{"raw_input":"quiz tomorrow and reply to Ali"}`))
+	saveReq := httptest.NewRequest(http.MethodPost, "/api/v1/plans", strings.NewReader(`{"raw_input":"quiz tomorrow and reply to Ali","customization":{"name":" Ayşe ","productive_hours":"10:00 - 13:00","priorities":"Dersler"}}`))
 	saveReq.Header.Set("Content-Type", "application/json")
 	saveReq.Header.Set("X-OneNext-Client-ID", clientID)
 
@@ -175,6 +175,12 @@ func TestPlansEndpoint_SaveListGetAndCalendar(t *testing.T) {
 	}
 	if savedPlan.PlanningDate != today {
 		t.Fatalf("Expected planning date %s, got %s", today, savedPlan.PlanningDate)
+	}
+	if savedPlan.Customization.Name != "Ayşe" {
+		t.Fatalf("Expected trimmed customization name, got %q", savedPlan.Customization.Name)
+	}
+	if savedPlan.Customization.ProductiveHours != "10:00 - 13:00" {
+		t.Fatalf("Expected customization productive hours to be saved")
 	}
 
 	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/plans", nil)
@@ -213,6 +219,9 @@ func TestPlansEndpoint_SaveListGetAndCalendar(t *testing.T) {
 	}
 	if fetchedPlan.ID != savedPlan.ID || fetchedPlan.RawInput != savedPlan.RawInput {
 		t.Fatalf("Expected fetched plan to match saved plan")
+	}
+	if fetchedPlan.Customization.Priorities != "Dersler" {
+		t.Fatalf("Expected fetched plan customization to match saved plan")
 	}
 
 	calendarReq := httptest.NewRequest(http.MethodGet, "/api/v1/calendar?start="+today+"&end="+today, nil)

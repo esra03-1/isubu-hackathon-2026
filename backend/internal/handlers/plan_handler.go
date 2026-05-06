@@ -43,6 +43,7 @@ func (h PlanHandler) Save(c *gin.Context) {
 		writeError(c, http.StatusBadRequest, "empty_raw_input", "raw_input is required.")
 		return
 	}
+	customization := trimCustomization(request.Customization)
 
 	if utf8.RuneCountInString(rawInput) > MaxRawInputLength {
 		writeError(c, http.StatusRequestEntityTooLarge, "raw_input_too_long", "raw_input is too long.")
@@ -78,7 +79,7 @@ func (h PlanHandler) Save(c *gin.Context) {
 			return
 		}
 
-		promptContext := services.BuildPromptContext(now, planningDate, h.Cfg.Timezone, events)
+		promptContext := services.BuildPromptContext(now, planningDate, h.Cfg.Timezone, events, customization)
 		compiledPlan, err := services.CompileInputWithPromptContext(c.Request.Context(), h.Cfg, rawInput, promptContext)
 		if err != nil {
 			log.Printf("Compilation failed during save: %v", err)
@@ -87,13 +88,31 @@ func (h PlanHandler) Save(c *gin.Context) {
 		}
 	}
 
-	savedPlan, err := h.Store.SavePlan(c.Request.Context(), clientID, rawInput, plan, planningDate)
+	savedPlan, err := h.Store.SavePlan(c.Request.Context(), clientID, rawInput, plan, planningDate, customization)
 	if err != nil {
 		writeError(c, http.StatusInternalServerError, "save_plan_failed", "Could not save compiled plan.")
 		return
 	}
 
 	c.JSON(http.StatusCreated, savedPlan)
+}
+
+func trimCustomization(customization models.PlanCustomization) models.PlanCustomization {
+	return models.PlanCustomization{
+		Name:            strings.TrimSpace(customization.Name),
+		Age:             strings.TrimSpace(customization.Age),
+		RoleOrSchool:    strings.TrimSpace(customization.RoleOrSchool),
+		SleepWindow:     strings.TrimSpace(customization.SleepWindow),
+		SchoolHours:     strings.TrimSpace(customization.SchoolHours),
+		WorkHours:       strings.TrimSpace(customization.WorkHours),
+		ProductiveHours: strings.TrimSpace(customization.ProductiveHours),
+		FocusDuration:   strings.TrimSpace(customization.FocusDuration),
+		DailyWorkGoal:   strings.TrimSpace(customization.DailyWorkGoal),
+		Priorities:      strings.TrimSpace(customization.Priorities),
+		FocusHelpers:    strings.TrimSpace(customization.FocusHelpers),
+		Challenges:      strings.TrimSpace(customization.Challenges),
+		AdditionalNotes: strings.TrimSpace(customization.AdditionalNotes),
+	}
 }
 
 func (h PlanHandler) List(c *gin.Context) {

@@ -16,6 +16,7 @@ type PromptContext struct {
 	Timezone           string
 	RelativeDateHints  []RelativeDateHint
 	CalendarEvents     []CalendarEventPromptContext
+	Customization      models.PlanCustomization
 }
 
 type RelativeDateHint struct {
@@ -57,6 +58,7 @@ Requirements:
 - Only put items in timeline if they should happen on the planning date. If the input says next Tuesday, tomorrow, or another date after the planning date, keep it out of timeline and put it in calendar_events instead.
 - Do not include ids inside calendar_events; the backend generates those ids.
 - Use the provided planning date, real current date, and internal calendar context when resolving relative dates or scheduling around known OneNext events.
+- Use user customization only as preference context for scheduling, prioritization, tone, and constraints. Do not invent tasks from customization alone.
 - Draft short, natural Turkish replies if the input implies a message needs a response.
 - Flag missing information or deadline risks in insights.
 - Never invent important facts not present in input.
@@ -124,7 +126,7 @@ Here is the daily input:
 ` + rawInput
 }
 
-func BuildPromptContext(now time.Time, planningDate string, timezone string, events []models.CalendarEvent) PromptContext {
+func BuildPromptContext(now time.Time, planningDate string, timezone string, events []models.CalendarEvent, customization ...models.PlanCustomization) PromptContext {
 	weekdayNames := map[time.Weekday]string{
 		time.Sunday:    "Sunday",
 		time.Monday:    "Monday",
@@ -182,7 +184,7 @@ func BuildPromptContext(now time.Time, planningDate string, timezone string, eve
 		})
 	}
 
-	return PromptContext{
+	promptContext := PromptContext{
 		RealCurrentDate:    now.Format("2006-01-02"),
 		RealCurrentWeekday: weekdayNames[now.Weekday()],
 		PlanningDate:       planningDay.Format("2006-01-02"),
@@ -191,10 +193,14 @@ func BuildPromptContext(now time.Time, planningDate string, timezone string, eve
 		RelativeDateHints:  hints,
 		CalendarEvents:     calendarEvents,
 	}
+	if len(customization) > 0 {
+		promptContext.Customization = customization[0]
+	}
+	return promptContext
 }
 
 func formatPromptContext(promptContext PromptContext) string {
-	if promptContext.RealCurrentDate == "" && promptContext.PlanningDate == "" && len(promptContext.CalendarEvents) == 0 {
+	if promptContext.RealCurrentDate == "" && promptContext.PlanningDate == "" && len(promptContext.CalendarEvents) == 0 && !hasCustomization(promptContext.Customization) {
 		return "Calendar context: none provided."
 	}
 
@@ -217,6 +223,7 @@ func formatPromptContext(promptContext PromptContext) string {
 	if promptContext.Timezone != "" {
 		builder.WriteString("- Timezone: " + promptContext.Timezone + "\n")
 	}
+	writeCustomization(&builder, promptContext.Customization)
 
 	if len(promptContext.RelativeDateHints) > 0 {
 		builder.WriteString("- Relative date hints:\n")
@@ -245,6 +252,50 @@ func formatPromptContext(promptContext PromptContext) string {
 	}
 
 	return builder.String()
+}
+
+func hasCustomization(customization models.PlanCustomization) bool {
+	return customization.Name != "" ||
+		customization.Age != "" ||
+		customization.RoleOrSchool != "" ||
+		customization.SleepWindow != "" ||
+		customization.SchoolHours != "" ||
+		customization.WorkHours != "" ||
+		customization.ProductiveHours != "" ||
+		customization.FocusDuration != "" ||
+		customization.DailyWorkGoal != "" ||
+		customization.Priorities != "" ||
+		customization.FocusHelpers != "" ||
+		customization.Challenges != "" ||
+		customization.AdditionalNotes != ""
+}
+
+func writeCustomization(builder *strings.Builder, customization models.PlanCustomization) {
+	if !hasCustomization(customization) {
+		return
+	}
+
+	builder.WriteString("- User customization:\n")
+	writeCustomizationField(builder, "Name", customization.Name)
+	writeCustomizationField(builder, "Age", customization.Age)
+	writeCustomizationField(builder, "Role or school", customization.RoleOrSchool)
+	writeCustomizationField(builder, "Sleep window", customization.SleepWindow)
+	writeCustomizationField(builder, "School hours", customization.SchoolHours)
+	writeCustomizationField(builder, "Work hours", customization.WorkHours)
+	writeCustomizationField(builder, "Productive hours", customization.ProductiveHours)
+	writeCustomizationField(builder, "Single focus duration", customization.FocusDuration)
+	writeCustomizationField(builder, "Daily work goal", customization.DailyWorkGoal)
+	writeCustomizationField(builder, "Priorities", customization.Priorities)
+	writeCustomizationField(builder, "Focus helpers", customization.FocusHelpers)
+	writeCustomizationField(builder, "Challenges", customization.Challenges)
+	writeCustomizationField(builder, "Additional notes", customization.AdditionalNotes)
+}
+
+func writeCustomizationField(builder *strings.Builder, label string, value string) {
+	if value == "" {
+		return
+	}
+	builder.WriteString(fmt.Sprintf("  - %s: %s\n", label, value))
 }
 
 func nextWeekday(now time.Time, weekday time.Weekday) time.Time {

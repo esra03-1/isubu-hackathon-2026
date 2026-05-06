@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
-import { submitPlan } from '../api/client';
 import { mockData } from '../mockData';
 
 const LAST_INPUT_KEY = 'onenext_last_input';
@@ -15,7 +14,6 @@ export default function InputPage() {
   const [rawInput, setRawInput] = useState(
     () => localStorage.getItem(LAST_INPUT_KEY) ?? ''
   );
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveAndNavigate = (plan: typeof mockData) => {
@@ -30,21 +28,11 @@ export default function InputPage() {
     setErrorMessage(null);
   };
 
-  const handleCompile = async () => {
+  const handleCompile = () => {
     if (!rawInput.trim()) return;
-    setIsLoading(true);
     setErrorMessage(null);
-    try {
-      localStorage.setItem(LAST_INPUT_KEY, rawInput);
-      const plan = await submitPlan({ raw_input: rawInput });
-      saveAndNavigate(plan);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Plan oluşturulamadı. Lütfen tekrar dene.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    navigate('/loading', { state: { request: { raw_input: rawInput } } });
   };
 
   const handleDemo = () => {
@@ -93,7 +81,6 @@ export default function InputPage() {
             }
           }}
           maxLength={MAX_LENGTH}
-          disabled={isLoading}
           placeholder="Bugün yapmam gerekenleri, mesajları, hatırlatmaları veya aklındaki karışıklığı buraya yapıştır..."
           className="w-full h-40 md:h-48 resize-none outline-none text-base md:text-lg bg-transparent font-medium text-slate-600 placeholder-slate-300 leading-relaxed"
         />
@@ -114,7 +101,7 @@ export default function InputPage() {
             <button
               id="clear-btn"
               onClick={handleClear}
-              disabled={!rawInput || isLoading}
+              disabled={!rawInput}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Eraser size={16} /> Temizle
@@ -123,7 +110,7 @@ export default function InputPage() {
             <button
               id="compile-btn"
               onClick={handleCompile}
-              disabled={!rawInput.trim() || isLoading}
+              disabled={!rawInput.trim()}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
             >
               <Sparkles size={16} fill="currentColor" /> Günü Derle
@@ -132,7 +119,6 @@ export default function InputPage() {
             <button
               id="demo-btn"
               onClick={handleDemo}
-              disabled={isLoading}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#f694c1]/30 bg-white text-[#d85888] text-sm font-bold shadow-sm hover:bg-[#fff7fb] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles size={16} /> Demo
@@ -141,7 +127,6 @@ export default function InputPage() {
             <button
               id="customize-btn"
               onClick={handleCustomize}
-              disabled={isLoading}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#ede7b1] to-[#d3f8e2] hover:opacity-90 text-slate-700 text-sm font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
             >
               <User size={16} /> Gününü Kişiselleştir

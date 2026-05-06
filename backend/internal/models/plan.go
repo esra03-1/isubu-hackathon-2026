@@ -5,17 +5,35 @@ type CompileRequest struct {
 }
 
 type SavePlanRequest struct {
-	RawInput     string `json:"raw_input"`
-	PlanningDate string `json:"planning_date"`
+	RawInput      string            `json:"raw_input"`
+	PlanningDate  string            `json:"planning_date"`
+	Customization PlanCustomization `json:"customization"`
+}
+
+type PlanCustomization struct {
+	Name            string `json:"name"`
+	Age             string `json:"age"`
+	RoleOrSchool    string `json:"role_or_school"`
+	SleepWindow     string `json:"sleep_window"`
+	SchoolHours     string `json:"school_hours"`
+	WorkHours       string `json:"work_hours"`
+	ProductiveHours string `json:"productive_hours"`
+	FocusDuration   string `json:"focus_duration"`
+	DailyWorkGoal   string `json:"daily_work_goal"`
+	Priorities      string `json:"priorities"`
+	FocusHelpers    string `json:"focus_helpers"`
+	Challenges      string `json:"challenges"`
+	AdditionalNotes string `json:"additional_notes"`
 }
 
 type SavedPlan struct {
-	ID           string       `json:"id"`
-	ClientID     string       `json:"client_id"`
-	RawInput     string       `json:"raw_input"`
-	PlanningDate string       `json:"planning_date"`
-	CompiledPlan CompiledPlan `json:"compiled_plan"`
-	CreatedAt    string       `json:"created_at"`
+	ID            string            `json:"id"`
+	ClientID      string            `json:"client_id"`
+	RawInput      string            `json:"raw_input"`
+	PlanningDate  string            `json:"planning_date"`
+	Customization PlanCustomization `json:"customization"`
+	CompiledPlan  CompiledPlan      `json:"compiled_plan"`
+	CreatedAt     string            `json:"created_at"`
 }
 
 type PlanSummary struct {
