@@ -49,14 +49,21 @@ Requirements:
 - Infer realistic times only when needed.
 - Prefer the most concrete urgent action as focus.
 - Create a timeline from known times first, then inferred order.
+- For same-day tasks without an explicit time, infer the best realistic slot and include them in timeline instead of dropping them.
+- If the input contains a fixed-time event plus untimed same-day tasks, place the untimed tasks around that event in the most sensible order.
 - Space demanding tasks realistically and be mindful of short breaks, meals, and context-switching so the day plan does not become an uninterrupted wall of tasks.
 - Put the planning date's executable plan in timeline.
 - Put future or explicitly dated obligations in calendar_events.
+- Only put items in timeline if they should happen on the planning date. If the input says next Tuesday, tomorrow, or another date after the planning date, keep it out of timeline and put it in calendar_events instead.
 - Do not include ids inside calendar_events; the backend generates those ids.
 - Use the provided planning date, real current date, and internal calendar context when resolving relative dates or scheduling around known OneNext events.
 - Draft short, natural Turkish replies if the input implies a message needs a response.
 - Flag missing information or deadline risks in insights.
 - Never invent important facts not present in input.
+- Keep summary.headline natural and concise, not robotic or repetitive.
+- estimated_saved_minutes must be a realistic positive integer, usually between 15 and 90 for a meaningful plan. Do not return 0 unless the user input is already fully structured and needs almost no planning help.
+- duration values must be concrete and human-readable, such as "15 dk", "30 dk", "45 dakika", or "1 saat". Never use "full-day", "all-day", or other vague placeholders.
+- Do not pad the day with generic filler tasks like "Oturum" unless the user clearly implied them.
 - Use debug.warnings when assumptions are made.
 
 EXPECTED JSON SCHEMA:

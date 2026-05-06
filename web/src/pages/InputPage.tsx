@@ -16,23 +16,40 @@ export default function InputPage() {
     () => localStorage.getItem(LAST_INPUT_KEY) ?? ''
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleClear = () => setRawInput('');
+  const saveAndNavigate = (plan: typeof mockData) => {
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+    localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+    navigate('/loading', { state: { plan } });
+  };
+
+  const handleClear = () => {
+    setRawInput('');
+    setErrorMessage(null);
+  };
 
   const handleCompile = async () => {
     if (!rawInput.trim()) return;
     setIsLoading(true);
-    let plan = mockData;
+    setErrorMessage(null);
     try {
-      plan = await submitPlan({ raw_input: rawInput });
-    } catch {
-      // Backend erişilemiyorsa mock data ile devam et
-    } finally {
       localStorage.setItem(LAST_INPUT_KEY, rawInput);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/loading', { state: { plan } });
+      const plan = await submitPlan({ raw_input: rawInput });
+      saveAndNavigate(plan);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Plan oluşturulamadı. Lütfen tekrar dene.'
+      );
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleDemo = () => {
+    setErrorMessage(null);
+    saveAndNavigate(mockData);
   };
 
   const handleCustomize = () => {
@@ -69,12 +86,23 @@ export default function InputPage() {
         <textarea
           id="daily-input"
           value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
+          onChange={(e) => {
+            setRawInput(e.target.value);
+            if (errorMessage) {
+              setErrorMessage(null);
+            }
+          }}
           maxLength={MAX_LENGTH}
           disabled={isLoading}
           placeholder="Bugün yapmam gerekenleri, mesajları, hatırlatmaları veya aklındaki karışıklığı buraya yapıştır..."
           className="w-full h-40 md:h-48 resize-none outline-none text-base md:text-lg bg-transparent font-medium text-slate-600 placeholder-slate-300 leading-relaxed"
         />
+
+        {errorMessage && (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Alt Kısım: Sayaç ve Butonlar */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between pt-4 border-t border-slate-100 mt-2">
@@ -99,6 +127,15 @@ export default function InputPage() {
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
             >
               <Sparkles size={16} fill="currentColor" /> Günü Derle
+            </button>
+
+            <button
+              id="demo-btn"
+              onClick={handleDemo}
+              disabled={isLoading}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#f694c1]/30 bg-white text-[#d85888] text-sm font-bold shadow-sm hover:bg-[#fff7fb] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles size={16} /> Demo
             </button>
 
             <button

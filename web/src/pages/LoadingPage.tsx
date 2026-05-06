@@ -4,6 +4,8 @@ import { Sparkles, Loader2, Menu, CircleDashed, CheckCircle2 } from 'lucide-reac
 import type { CompiledPlan } from '../api/types';
 import { mockData } from '../mockData';
 
+const LAST_PLAN_KEY = 'onenext_last_plan';
+
 const steps = [
   { id: 1, title: 'Girdin analiz ediliyor', desc: 'Notların okunuyor ve anlaşılmaya çalışılıyor...', icon: '📝', colorClass: 'bg-[#cdb4db]', textClass: 'text-[#8E7AB5]' },
   { id: 2, title: 'Öncelikler çıkarılıyor', desc: 'En önemli görevler belirleniyor...', icon: '🎯', colorClass: 'bg-[#ffc8dd]', textClass: 'text-[#d85888]' },
@@ -19,9 +21,23 @@ export default function LoadingPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Plan verisi: InputPage'den navigation state ile gelir
-  const plan: CompiledPlan =
-    (location.state as { plan?: CompiledPlan } | null)?.plan ?? mockData;
+  const plan = (() => {
+    const fromState = (location.state as { plan?: CompiledPlan } | null)?.plan;
+    if (fromState) {
+      return fromState;
+    }
+
+    const saved = localStorage.getItem(LAST_PLAN_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved) as CompiledPlan;
+      } catch {
+        // Ignore malformed local state and use demo data.
+      }
+    }
+
+    return mockData;
+  })();
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [progress, setProgress] = useState(0);
