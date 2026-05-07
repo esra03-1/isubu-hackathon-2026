@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
-import { submitPlan } from '../api/client';
 import { mockData } from '../mockData';
 
 const LAST_INPUT_KEY = 'onenext_last_input';
@@ -15,24 +14,30 @@ export default function InputPage() {
   const [rawInput, setRawInput] = useState(
     () => localStorage.getItem(LAST_INPUT_KEY) ?? ''
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleClear = () => setRawInput('');
+  const saveAndNavigate = (plan: typeof mockData) => {
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+    localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+    navigate('/loading', { state: { plan } });
+  };
 
-  const handleCompile = async () => {
+  const handleClear = () => {
+    setRawInput('');
+    setErrorMessage(null);
+  };
+
+  const handleCompile = () => {
     if (!rawInput.trim()) return;
-    setIsLoading(true);
-    let plan = mockData;
-    try {
-      plan = await submitPlan({ raw_input: rawInput });
-    } catch {
-      // Backend erişilemiyorsa mock data ile devam et
-    } finally {
-      localStorage.setItem(LAST_INPUT_KEY, rawInput);
-      localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
-      localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-      navigate('/loading', { state: { plan } });
-    }
+    setErrorMessage(null);
+    localStorage.setItem(LAST_INPUT_KEY, rawInput);
+    navigate('/loading', { state: { request: { raw_input: rawInput } } });
+  };
+
+  const handleDemo = () => {
+    setErrorMessage(null);
+    saveAndNavigate(mockData);
   };
 
   const handleCustomize = () => {
@@ -69,12 +74,22 @@ export default function InputPage() {
         <textarea
           id="daily-input"
           value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
+          onChange={(e) => {
+            setRawInput(e.target.value);
+            if (errorMessage) {
+              setErrorMessage(null);
+            }
+          }}
           maxLength={MAX_LENGTH}
-          disabled={isLoading}
           placeholder="Bugün yapmam gerekenleri, mesajları, hatırlatmaları veya aklındaki karışıklığı buraya yapıştır..."
           className="w-full h-40 md:h-48 resize-none outline-none text-base md:text-lg bg-transparent font-medium text-slate-600 placeholder-slate-300 leading-relaxed"
         />
+
+        {errorMessage && (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Alt Kısım: Sayaç ve Butonlar */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between pt-4 border-t border-slate-100 mt-2">
@@ -86,7 +101,7 @@ export default function InputPage() {
             <button
               id="clear-btn"
               onClick={handleClear}
-              disabled={!rawInput || isLoading}
+              disabled={!rawInput}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Eraser size={16} /> Temizle
@@ -95,16 +110,23 @@ export default function InputPage() {
             <button
               id="compile-btn"
               onClick={handleCompile}
-              disabled={!rawInput.trim() || isLoading}
+              disabled={!rawInput.trim()}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
             >
               <Sparkles size={16} fill="currentColor" /> Günü Derle
             </button>
 
             <button
+              id="demo-btn"
+              onClick={handleDemo}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#f694c1]/30 bg-white text-[#d85888] text-sm font-bold shadow-sm hover:bg-[#fff7fb] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles size={16} /> Demo
+            </button>
+
+            <button
               id="customize-btn"
               onClick={handleCustomize}
-              disabled={isLoading}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#ede7b1] to-[#d3f8e2] hover:opacity-90 text-slate-700 text-sm font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
             >
               <User size={16} /> Gününü Kişiselleştir

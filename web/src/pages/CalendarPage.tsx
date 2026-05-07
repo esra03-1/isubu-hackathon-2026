@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
+import type { EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import type { DateClickArg } from '@fullcalendar/interaction';
 import { X, Plus, Trash2 } from 'lucide-react';
 
 const mockEvents = [
@@ -24,12 +26,12 @@ export default function CalendarPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
 
-  const handleDateClick = (arg: any) => {
+  const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
     setIsModalOpen(true);
   };
 
-  const handleEventClick = (arg: any) => {
+  const handleEventClick = (arg: EventClickArg) => {
     setSelectedDate(arg.event.startStr.split('T')[0]);
     setIsModalOpen(true);
   };

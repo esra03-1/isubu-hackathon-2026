@@ -1,4 +1,4 @@
-import type { CompileRequest, CompiledPlan, SavedPlan } from './types';
+import type { CompileRequest, CompiledPlan, PlanCustomization, PlanSummary, SavedPlan } from './types';
 
 const CLIENT_ID_KEY = 'onenext_client_id';
 
@@ -13,6 +13,7 @@ export function getOneNextClientId(): string {
 
 export interface PlanRequest extends CompileRequest {
   planning_date?: string; // YYYY-MM-DD, optional
+  customization?: Partial<PlanCustomization>;
 }
 
 /**
@@ -39,6 +40,41 @@ export async function submitPlan(request: PlanRequest): Promise<CompiledPlan> {
 
   const saved: SavedPlan = await response.json();
   return saved.compiled_plan;
+}
+
+export async function listPlans(): Promise<PlanSummary[]> {
+  const clientId = getOneNextClientId();
+
+  const response = await fetch('/api/v1/plans', {
+    headers: {
+      'X-OneNext-Client-ID': clientId,
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? 'Failed to list plans');
+  }
+
+  const body = await response.json() as { plans: PlanSummary[] };
+  return body.plans;
+}
+
+export async function getSavedPlan(planId: string): Promise<SavedPlan> {
+  const clientId = getOneNextClientId();
+
+  const response = await fetch(`/api/v1/plans/${planId}`, {
+    headers: {
+      'X-OneNext-Client-ID': clientId,
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? 'Failed to fetch plan');
+  }
+
+  return response.json();
 }
 
 /**

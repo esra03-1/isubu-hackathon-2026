@@ -8,6 +8,22 @@ export interface CompileRequest {
   raw_input: string;
 }
 
+export interface PlanCustomization {
+  name: string;
+  age: string;
+  role_or_school: string;
+  sleep_window: string;
+  school_hours: string;
+  work_hours: string;
+  productive_hours: string;
+  focus_duration: string;
+  daily_work_goal: string;
+  priorities: string;
+  focus_helpers: string;
+  challenges: string;
+  additional_notes: string;
+}
+
 export interface Summary {
   headline: string;
   estimated_saved_minutes: number;
@@ -73,6 +89,7 @@ export interface SavedPlan {
   client_id: string;
   raw_input: string;
   planning_date: string;
+  customization: PlanCustomization;
   compiled_plan: CompiledPlan;
   created_at: string;
 }
