@@ -1,60 +1,143 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
-import type { EventClickArg } from '@fullcalendar/core';
+import type { EventClickArg, EventInput, EventSourceFuncArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { DateClickArg } from '@fullcalendar/interaction';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Sparkles } from 'lucide-react';
+import { getCalendarEvents, getSavedPlan } from '../api/client';
+import type { CalendarEvent, TimelineType } from '../api/types';
 
-const mockEvents = [
-  { id: '1', title: 'Architecture Review', start: new Date().toISOString().split('T')[0] + 'T09:30:00', end: new Date().toISOString().split('T')[0] + 'T11:00:00', backgroundColor: '#fed7aa', borderColor: '#fdba74', textColor: '#9a3412' },
-  { id: '2', title: 'Team Standup', start: new Date().toISOString().split('T')[0] + 'T14:15:00', end: new Date().toISOString().split('T')[0] + 'T14:45:00', backgroundColor: '#fef08a', borderColor: '#fde047', textColor: '#854d0e' },
-  { id: '3', title: 'Deployment Meeting', start: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0] + 'T19:15:00', backgroundColor: '#bfdbfe', borderColor: '#93c5fd', textColor: '#1e3a8a' },
-  { id: '4', title: 'Code Review', start: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString().split('T')[0] + 'T14:45:00', backgroundColor: '#fbcfe8', borderColor: '#f9a8d4', textColor: '#831843' },
-  { id: '5', title: 'Design Workshop', start: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0] + 'T19:30:00', backgroundColor: '#fef08a', borderColor: '#fde047', textColor: '#854d0e' },
-];
+const eventColors: Record<TimelineType, { backgroundColor: string; borderColor: string; textColor: string }> = {
+  academic: { backgroundColor: '#fef08a', borderColor: '#fde047', textColor: '#854d0e' },
+  errand: { backgroundColor: '#fed7aa', borderColor: '#fdba74', textColor: '#9a3412' },
+  meeting: { backgroundColor: '#bfdbfe', borderColor: '#93c5fd', textColor: '#1e3a8a' },
+  personal: { backgroundColor: '#d3f8e2', borderColor: '#86efac', textColor: '#166534' },
+  work: { backgroundColor: '#fbcfe8', borderColor: '#f9a8d4', textColor: '#831843' },
+};
+
+const sourceLabels: Record<CalendarEvent['source'], string> = {
+  ai_calendar_event: 'AI takvim',
+  compiled_plan: 'Günlük plan',
+};
+
+function formatDateParam(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getInclusiveEndDate(date: Date): Date {
+  const inclusiveEnd = new Date(date);
+  inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  return inclusiveEnd;
+}
+
+function toCalendarInput(event: CalendarEvent): EventInput {
+  return {
+    id: event.id,
+    title: event.title,
+    start: `${event.date}T${event.time}:00`,
+    ...eventColors[event.type],
+  };
+}
+
+function getEventDedupeKey(event: CalendarEvent): string {
+  return [
+    event.date,
+    event.time,
+    event.title.trim().toLocaleLowerCase('tr-TR'),
+    event.type,
+    event.source,
+  ].join('|');
+}
+
+function dedupeCalendarEvents(events: CalendarEvent[]): CalendarEvent[] {
+  const seen = new Set<string>();
+
+  return events.filter((event) => {
+    const key = getEventDedupeKey(event);
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function getMostRecentPlanId(events: CalendarEvent[]): string | null {
+  if (events.length === 0) return null;
+
+  const [latestEvent] = [...events].sort((left, right) =>
+    right.created_at.localeCompare(left.created_at)
+  );
+  return latestEvent.plan_id;
+}
 
 export default function CalendarPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const calendarRef = useRef<FullCalendar>(null);
 
-  const [events, setEvents] = useState(mockEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [modalErrorMessage, setModalErrorMessage] = useState<string | null>(null);
+  const [isOpeningPlan, setIsOpeningPlan] = useState(false);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
+    setModalErrorMessage(null);
     setIsModalOpen(true);
   };
 
   const handleEventClick = (arg: EventClickArg) => {
     setSelectedDate(arg.event.startStr.split('T')[0]);
+    setModalErrorMessage(null);
     setIsModalOpen(true);
   };
 
-  const handleAddTask = () => {
-    if (!newTaskTitle.trim() || !selectedDate) return;
-    const newEvent = {
-      id: Date.now().toString(),
-      title: newTaskTitle,
-      start: `${selectedDate}T09:00:00`,
-      backgroundColor: '#bfdbfe',
-      borderColor: '#93c5fd',
-      textColor: '#1e3a8a'
-    };
-    setEvents([...events, newEvent]);
-    setNewTaskTitle('');
-  };
+  const loadEvents = useCallback(async (fetchInfo: EventSourceFuncArg): Promise<EventInput[]> => {
+    try {
+      setErrorMessage(null);
+      const fetchedEvents = await getCalendarEvents(
+        formatDateParam(fetchInfo.start),
+        formatDateParam(getInclusiveEndDate(fetchInfo.end))
+      );
+      const uniqueEvents = dedupeCalendarEvents(fetchedEvents);
+      setEvents(uniqueEvents);
+      return uniqueEvents.map(toCalendarInput);
+    } catch (error) {
+      setEvents([]);
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Takvim etkinlikleri alınamadı.'
+      );
+      return [];
+    }
+  }, []);
 
-  const handleDeleteTask = (id: string) => {
-    setEvents(events.filter(e => e.id !== id));
-  };
+  const selectedEvents = events.filter(event => event.date === selectedDate);
+  const selectedPlanId = getMostRecentPlanId(selectedEvents);
 
-  const selectedEvents = events.filter(e => e.start.startsWith(selectedDate || ''));
+  const handleOpenSelectedPlan = async () => {
+    if (!selectedPlanId) return;
+
+    setIsOpeningPlan(true);
+    setModalErrorMessage(null);
+    try {
+      const savedPlan = await getSavedPlan(selectedPlanId);
+      navigate('/result', { state: { plan: savedPlan.compiled_plan } });
+    } catch (error) {
+      setModalErrorMessage(
+        error instanceof Error ? error.message : 'Plan detayı açılamadı.'
+      );
+    } finally {
+      setIsOpeningPlan(false);
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -139,6 +222,11 @@ export default function CalendarPage() {
 
         {/* Calendar Container */}
         <div className="flex-1 p-4 bg-white overflow-hidden relative">
+          {errorMessage && (
+            <div className="absolute left-6 right-6 top-6 z-10 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-sm">
+              {errorMessage}
+            </div>
+          )}
           <style>{`
             .fc-theme-standard td, .fc-theme-standard th {
               border-color: #e2e8f0 !important;
@@ -226,7 +314,7 @@ export default function CalendarPage() {
               month: 'Aylık',
               week: 'Haftalık'
             }}
-            events={events}
+            events={loadEvents}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
             height="100%"
@@ -258,34 +346,37 @@ export default function CalendarPage() {
                 <p className="text-sm text-slate-500 text-center py-4">Bu gün için planlanmış görev yok.</p>
               ) : (
                 selectedEvents.map(event => (
-                  <div key={event.id} className="flex justify-between items-center p-3 rounded-xl border border-slate-100 bg-white shadow-sm group">
-                    <span className="text-sm font-medium text-slate-700">{event.title}</span>
-                    <button onClick={() => handleDeleteTask(event.id)} className="text-red-400 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100">
-                      <Trash2 size={16} />
-                    </button>
+                  <div key={event.id} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-white shadow-sm">
+                    <div className="w-12 shrink-0 text-sm font-black text-slate-800">{event.time}</div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-700">{event.title}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+                        {sourceLabels[event.source]}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                  placeholder="Yeni görev ekle..."
-                  className="flex-1 px-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:border-[#cdb4db] focus:ring-2 focus:ring-[#cdb4db]/20 transition-all"
-                />
-                <button 
-                  onClick={handleAddTask}
-                  className="bg-[#cdb4db] hover:bg-[#b895c8] text-white p-2 rounded-xl transition-colors shadow-sm"
+            {modalErrorMessage && (
+              <div className="mx-4 mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                {modalErrorMessage}
+              </div>
+            )}
+
+            {selectedPlanId && (
+              <div className="p-4 border-t border-slate-100 bg-slate-50">
+                <button
+                  onClick={handleOpenSelectedPlan}
+                  disabled={isOpeningPlan}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] text-white text-sm font-bold shadow-sm hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
-                  <Plus size={20} />
+                  <Sparkles size={16} fill="currentColor" />
+                  {isOpeningPlan ? 'Açılıyor...' : 'Plan Detaylarını Gör'}
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
