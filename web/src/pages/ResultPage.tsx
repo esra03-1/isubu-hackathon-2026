@@ -5,6 +5,9 @@ import type { CompiledPlan } from '../api/types';
 import { mockData } from '../mockData';
 
 const LAST_PLAN_KEY = 'onenext_last_plan';
+const COMPLETED_EVENTS_KEY = 'onenext_completed_events';
+const checkboxClass =
+  'shrink-0 appearance-none rounded-lg border-2 border-[#cdb4db]/40 bg-white shadow-sm transition-all checked:border-[#d85888] checked:bg-[#ffafcc] checked:bg-[url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2016%2016%27%20fill%3D%27none%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cpath%20d%3D%27M3.5%208.2L6.6%2011.2L12.8%204.8%27%20stroke%3D%27white%27%20stroke-width%3D%272.2%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E")] checked:bg-center checked:bg-no-repeat focus:outline-none focus:ring-2 focus:ring-[#e4c1f9]';
 
 const pressureLabels: Record<CompiledPlan['summary']['dominant_pressure'], string> = {
   academic: 'Akademik',
@@ -31,12 +34,42 @@ function compareTimeStrings(left: string, right: string): number {
   return left.localeCompare(right);
 }
 
+function formatDateParam(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTimelineKey(time: string, title: string): string {
+  return `${time}|${title.trim().toLocaleLowerCase('tr-TR')}`;
+}
+
+function getCompletionKey(date: string, time: string, title: string): string {
+  return `${date}|${getTimelineKey(time, title)}`;
+}
+
+function readCompletedEvents(): Set<string> {
+  const saved = localStorage.getItem(COMPLETED_EVENTS_KEY);
+  if (!saved) return new Set();
+
+  try {
+    return new Set(JSON.parse(saved) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCompletedEvents(completed: Set<string>) {
+  localStorage.setItem(COMPLETED_EVENTS_KEY, JSON.stringify([...completed]));
+}
+
 export default function ResultPage() {
   const location = useLocation();
   const navigate = useNavigate();
 
   const data = (() => {
-    const fromState = (location.state as { plan?: CompiledPlan } | null)?.plan;
+    const fromState = (location.state as { plan?: CompiledPlan; planningDate?: string } | null)?.plan;
     if (fromState) {
       return fromState;
     }
@@ -57,10 +90,30 @@ export default function ResultPage() {
   const [showAllReplies, setShowAllReplies] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [completedEvents, setCompletedEvents] = useState(readCompletedEvents);
+  const planningDate =
+    (location.state as { planningDate?: string } | null)?.planningDate ?? formatDateParam(new Date());
 
   const sortedTimeline = [...data.timeline].sort((left, right) =>
     compareTimeStrings(left.time, right.time)
   );
+  const firstUncheckedItem =
+    sortedTimeline.find((item) => !completedEvents.has(getCompletionKey(planningDate, item.time, item.title))) ??
+    sortedTimeline[0];
+  const displayedFocusCompletionKey = firstUncheckedItem
+    ? getCompletionKey(planningDate, firstUncheckedItem.time, firstUncheckedItem.title)
+    : null;
+  const displayedFocus = firstUncheckedItem
+    ? {
+        title: firstUncheckedItem.title,
+        duration: firstUncheckedItem.duration,
+        urgency: data.focus.urgency,
+        reason:
+          firstUncheckedItem.title === data.focus.title
+            ? data.focus.reason
+            : 'Sıradaki tamamlanmamış zaman akışı öğesi.',
+      }
+    : data.focus;
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -75,6 +128,33 @@ export default function ResultPage() {
     if (t.includes('proje') || t.includes('doküman')) return '📁';
     if (t.includes('kapanış')) return '✅';
     return '📌';
+  };
+
+  const toggleCompleted = (time: string, title: string) => {
+    const key = getCompletionKey(planningDate, time, title);
+    setCompletedEvents((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      writeCompletedEvents(next);
+      return next;
+    });
+  };
+
+  const toggleCompletionKey = (key: string) => {
+    setCompletedEvents((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      writeCompletedEvents(next);
+      return next;
+    });
   };
 
   const visibleInsights = showAllInsights ? data.insights : data.insights.slice(0, 3);
@@ -151,12 +231,28 @@ export default function ResultPage() {
               </span>
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-3 leading-tight">
-              {data.focus.title}
-            </h1>
+            <div className="mb-3 flex items-start gap-3">
+              {displayedFocusCompletionKey && (
+                <input
+                  type="checkbox"
+                  checked={completedEvents.has(displayedFocusCompletionKey)}
+                  onChange={() => toggleCompletionKey(displayedFocusCompletionKey)}
+                  className={`mt-2 h-5 w-5 ${checkboxClass}`}
+                />
+              )}
+              <h1
+                className={`text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight ${
+                  displayedFocusCompletionKey && completedEvents.has(displayedFocusCompletionKey)
+                    ? 'line-through opacity-50'
+                    : ''
+                }`}
+              >
+                {displayedFocus.title}
+              </h1>
+            </div>
 
             <p className="text-slate-700 font-medium text-base mb-6 max-w-[80%] md:max-w-[70%]">
-              {data.focus.reason}
+              {displayedFocus.reason}
             </p>
 
             <div className="flex flex-wrap gap-4 w-[85%] md:w-[70%]">
@@ -164,7 +260,7 @@ export default function ResultPage() {
               <div className="bg-white border border-white rounded-2xl p-4 flex-1 min-w-[130px] flex items-center justify-between shadow-sm">
                 <div>
                   <div className="text-xs font-bold text-slate-500 mb-1">Tahmini Süre</div>
-                  <div className="text-xl font-black text-slate-900">{data.focus.duration}</div>
+                  <div className="text-xl font-black text-slate-900">{displayedFocus.duration}</div>
                 </div>
                 <div className="bg-[#cdb4db]/20 p-2 rounded-full text-[#a88ebf]">
                   <Clock size={22} strokeWidth={2.5} />
@@ -175,7 +271,7 @@ export default function ResultPage() {
               <div className="bg-white border border-white rounded-2xl p-4 flex-1 min-w-[130px] flex items-center justify-between shadow-sm">
                 <div>
                   <div className="text-xs font-bold text-slate-500 mb-1">Öncelik</div>
-                  <div className="text-xl font-black text-[#ffafcc]">{urgencyLabels[data.focus.urgency]}</div>
+                  <div className="text-xl font-black text-[#ffafcc]">{urgencyLabels[displayedFocus.urgency]}</div>
                 </div>
                 <div className="flex gap-1">
                   <div className="w-3.5 h-3.5 rounded-full bg-[#ffafcc]" />
@@ -200,6 +296,12 @@ export default function ResultPage() {
             <div className="space-y-6">
               {sortedTimeline.map((item) => (
                 <div key={item.id} className="relative flex items-start gap-4 md:gap-6 group">
+                  <input
+                    type="checkbox"
+                    checked={completedEvents.has(getCompletionKey(planningDate, item.time, item.title))}
+                    onChange={() => toggleCompleted(item.time, item.title)}
+                    className={`mt-3 h-4 w-4 ${checkboxClass}`}
+                  />
                   <div className="mt-2.5 w-12 flex-shrink-0 font-black text-slate-800 text-lg">
                     {item.time}
                   </div>
@@ -209,7 +311,15 @@ export default function ResultPage() {
                         {getTimelineEmoji(item.title)}
                       </div>
                       <div className="pt-1">
-                        <h4 className="font-bold text-lg text-slate-900">{item.title}</h4>
+                        <h4
+                          className={`font-bold text-lg text-slate-900 ${
+                            completedEvents.has(getCompletionKey(planningDate, item.time, item.title))
+                              ? 'line-through opacity-50'
+                              : ''
+                          }`}
+                        >
+                          {item.title}
+                        </h4>
                       </div>
                     </div>
                     <div className="hidden sm:inline-flex bg-white text-[#a2d2ff] px-4 py-1.5 rounded-full text-xs font-bold border border-[#bde0fe]/50 shadow-sm whitespace-nowrap mt-2 md:mt-0">
