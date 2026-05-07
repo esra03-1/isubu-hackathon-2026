@@ -1,13 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
+import { CalendarDays, Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
 import { mockData } from '../mockData';
+import type { PlanCustomization } from '../api/types';
 
 const LAST_INPUT_KEY = 'onenext_last_input';
 const LAST_PLAN_KEY = 'onenext_last_plan';
 const LAST_TS_KEY = 'onenext_last_ts';
+const CUSTOMIZATION_KEY = 'onenext_customization';
 
 const MAX_LENGTH = 4000;
+
+function readSavedCustomization(): Partial<PlanCustomization> | undefined {
+  const saved = localStorage.getItem(CUSTOMIZATION_KEY);
+  if (!saved) return undefined;
+
+  try {
+    return JSON.parse(saved) as Partial<PlanCustomization>;
+  } catch {
+    return undefined;
+  }
+}
 
 export default function InputPage() {
   const navigate = useNavigate();
@@ -32,7 +45,9 @@ export default function InputPage() {
     if (!rawInput.trim()) return;
     setErrorMessage(null);
     localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    navigate('/loading', { state: { request: { raw_input: rawInput } } });
+    navigate('/loading', {
+      state: { request: { raw_input: rawInput, customization: readSavedCustomization() } },
+    });
   };
 
   const handleDemo = () => {
@@ -67,9 +82,27 @@ export default function InputPage() {
 
       {/* Girdi Kartı */}
       <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 max-w-4xl mx-auto transition-all focus-within:shadow-[0_8px_40px_rgb(0,0,0,0.08)] focus-within:border-[#e4c1f9]/50">
-        <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-          Bugün aklında ne var?
-        </h3>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            Bugün aklında ne var?
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              id="calendar-btn"
+              onClick={() => navigate('/')}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98]"
+            >
+              <CalendarDays size={16} /> Takvim
+            </button>
+            <button
+              id="customize-btn"
+              onClick={handleCustomize}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-[#d3f8e2] bg-[#d3f8e2]/30 text-slate-700 text-sm font-bold shadow-sm hover:bg-[#d3f8e2]/50 transition-all active:scale-[0.98]"
+            >
+              <User size={16} /> Seni Tanıyalım
+            </button>
+          </div>
+        </div>
 
         <textarea
           id="daily-input"
@@ -108,15 +141,6 @@ export default function InputPage() {
             </button>
 
             <button
-              id="compile-btn"
-              onClick={handleCompile}
-              disabled={!rawInput.trim()}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
-            >
-              <Sparkles size={16} fill="currentColor" /> Günü Derle
-            </button>
-
-            <button
               id="demo-btn"
               onClick={handleDemo}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#f694c1]/30 bg-white text-[#d85888] text-sm font-bold shadow-sm hover:bg-[#fff7fb] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -125,11 +149,12 @@ export default function InputPage() {
             </button>
 
             <button
-              id="customize-btn"
-              onClick={handleCustomize}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#ede7b1] to-[#d3f8e2] hover:opacity-90 text-slate-700 text-sm font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+              id="compile-btn"
+              onClick={handleCompile}
+              disabled={!rawInput.trim()}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
             >
-              <User size={16} /> Gününü Kişiselleştir
+              <Sparkles size={16} fill="currentColor" /> Günü Derle
             </button>
           </div>
         </div>
@@ -139,7 +164,7 @@ export default function InputPage() {
       <div className="bg-[#a9def9]/15 border border-[#a9def9]/30 rounded-2xl p-4 max-w-3xl mx-auto flex items-center justify-center gap-3 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm mt-8">
         <Lightbulb size={20} className="text-yellow-500 fill-yellow-500" />
         <p>
-          <strong>İpucu:</strong> Kişiselleştirirsen, planın senin rutinine ve önceliklerine göre daha isabetli olur.
+          <strong>İpucu:</strong> Seni biraz tanırsak, planın rutinine ve önceliklerine göre daha isabetli olur.
         </p>
       </div>
     </div>

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, User, Clock, Target, Heart, Zap, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, Sparkles, User, Clock, Target, Heart, Zap, FileText } from 'lucide-react';
 import { getSavedPlan, listPlans } from '../api/client';
 import type { PlanCustomization } from '../api/types';
 
-const LAST_INPUT_KEY = 'onenext_last_input';
+const CUSTOMIZATION_KEY = 'onenext_customization';
 
 const emptyCustomization: PlanCustomization = {
   name: '',
@@ -88,13 +88,7 @@ function FormTextarea({
 
 export default function CustomizePage() {
   const navigate = useNavigate();
-  const rawInput = localStorage.getItem(LAST_INPUT_KEY) ?? '';
-  const hasInput = rawInput.trim().length > 0;
   const dirtyRef = useRef(false);
-  const [planMode, setPlanMode] = useState<'day' | 'week' | 'month'>('day');
-  const [weeklyInput, setWeeklyInput] = useState('');
-  const [monthlyInput, setMonthlyInput] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [customization, setCustomization] = useState<PlanCustomization>(emptyCustomization);
 
   const updateCustomization = (field: keyof PlanCustomization, value: string) => {
@@ -106,6 +100,19 @@ export default function CustomizePage() {
     let cancelled = false;
 
     const hydrateLatestCustomization = async () => {
+      const savedCustomization = localStorage.getItem(CUSTOMIZATION_KEY);
+      if (savedCustomization) {
+        try {
+          setCustomization({
+            ...emptyCustomization,
+            ...(JSON.parse(savedCustomization) as Partial<PlanCustomization>),
+          });
+          return;
+        } catch {
+          // Ignore malformed local customization and try saved plan history.
+        }
+      }
+
       try {
         const plans = await listPlans();
         if (plans.length === 0) return;
@@ -130,52 +137,25 @@ export default function CustomizePage() {
   }, []);
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/input');
   };
 
-  const handlePlan = () => {
-    if (!hasInput) {
-      handleBack();
-      return;
-    }
-
-    setErrorMessage(null);
-    localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    navigate('/loading', { state: { request: { raw_input: rawInput, customization } } });
+  const handleSaveInfo = () => {
+    localStorage.setItem(CUSTOMIZATION_KEY, JSON.stringify(customization));
+    navigate('/input');
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 p-4 md:p-8">
       
       {/* Üst Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex items-start">
         <button 
           onClick={handleBack}
           className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
         >
-          <ArrowLeft size={16} /> Ana sayfaya dön
+          <ArrowLeft size={16} /> Girdi ekranına dön
         </button>
-        
-        <div className="flex items-center gap-3 w-full sm:w-auto p-1 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-xl shadow-sm">
-          <button 
-            onClick={() => setPlanMode('day')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${planMode === 'day' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Günlük
-          </button>
-          <button 
-            onClick={() => setPlanMode('week')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${planMode === 'week' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}
-          >
-            Haftalık
-          </button>
-          <button 
-            onClick={() => setPlanMode('month')}
-            className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${planMode === 'month' ? 'bg-white text-[#f694c1] shadow-sm' : 'text-slate-500 hover:text-[#f694c1]'}`}
-          >
-            Aylık
-          </button>
-        </div>
       </div>
 
       {/* Hero Section */}
@@ -186,27 +166,14 @@ export default function CustomizePage() {
           </div>
           <Sparkles className="absolute -top-2 -right-4 text-[#f694c1] animate-pulse" size={20} />
         </div>
-        <h2 className="text-3xl md:text-[2.5rem] font-extrabold tracking-tight text-[#1e293b] mb-3">
-          {planMode === 'day' ? 'Gününü Kişiselleştir' : planMode === 'week' ? 'Haftanı Planla' : 'Ayını Planla'}
-        </h2>
+        <h2 className="text-3xl md:text-[2.5rem] font-extrabold tracking-tight text-[#1e293b] mb-3">Seni Tanıyalım</h2>
         <p className="text-slate-500 font-medium">
-          {planMode === 'day' 
-            ? 'Planını senin hayatına göre daha iyi oluşturabilmemiz için isteğe bağlı bilgilerini paylaşabilirsin. 🐾'
-            : `Bu ${planMode === 'week' ? 'hafta' : 'ay'} neler yapman gerektiğini yaz, senin için takvime dökelim. 🐾`
-          }
+          Planını rutinine, enerjine ve önceliklerine göre daha iyi oluşturabilmemiz için isteğe bağlı bilgilerini paylaşabilirsin. 🐾
         </p>
       </div>
 
       {/* Forms */}
       <div className="space-y-6 max-w-4xl mx-auto">
-        {errorMessage && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {errorMessage}
-          </div>
-        )}
-        
-        {planMode === 'day' && (
-          <>
             {/* 1. Hakkında */}
             <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-in fade-in duration-500">
               <div className="flex items-center gap-3 mb-6">
@@ -315,57 +282,15 @@ export default function CustomizePage() {
                 />
               </div>
             </div>
-          </>
-        )}
-
-        {(planMode === 'week' || planMode === 'month') && (
-          <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-[#bde0fe]/20 rounded-xl text-[#5c98d6]">
-                <FileText size={18} />
-              </div>
-              <h3 className="font-extrabold text-slate-800 text-lg">
-                {planMode === 'week' ? 'Haftalık Yapılacaklar' : 'Aylık Hedefler'}
-              </h3>
-            </div>
-            <FormTextarea 
-              label={`Bu ${planMode === 'week' ? 'hafta' : 'ay'} neler yapmayı planlıyorsun?`}
-              description={`Yazdığın her şeyi takvim üzerinde senin için organize edeceğiz.`}
-              placeholder={`Örn. Çarşamba günü sunum hazırlanacak. Hafta sonu aile ziyareti. Salı ve Perşembe akşamı spor...`}
-              maxLength={1000}
-              maxLines={8}
-              value={planMode === 'week' ? weeklyInput : monthlyInput}
-              onChange={(value) => planMode === 'week' ? setWeeklyInput(value) : setMonthlyInput(value)}
-            />
-          </div>
-        )}
 
         {/* Footer / Kaydet Alanı */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-5 md:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-start md:items-center gap-3 bg-[#a9def9]/10 p-4 rounded-2xl border border-[#a9def9]/30 flex-1 w-full">
-            <Lock size={20} className="text-[#a9def9] flex-shrink-0 mt-0.5 md:mt-0" />
-            <p className="text-sm font-medium text-slate-600 leading-snug">
-              <strong className="text-slate-800">Bu bilgiler sadece senin planını iyileştirmek için kullanılır.</strong><br/>
-              Plan kaydınla birlikte saklanır; başka biriyle paylaşılmaz.
-            </p>
-          </div>
-          
-          {planMode === 'day' ? (
-            <button 
-              onClick={hasInput ? handlePlan : handleBack}
-              className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 whitespace-nowrap"
-            >
-              {hasInput ? "Gününü Planla" : "Kaydet ve Dön"} <Sparkles size={16} fill="currentColor" />
-            </button>
-          ) : (
-            <button 
-              onClick={() => navigate(`/calendar?view=${planMode}`)}
-              disabled={planMode === 'week' ? !weeklyInput.trim() : !monthlyInput.trim()}
-              className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#bde0fe] to-[#a2d2ff] hover:opacity-90 text-slate-800 font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 whitespace-nowrap"
-            >
-              {planMode === 'week' ? 'Haftayı Planla' : 'Ayı Planla'} <Sparkles size={16} />
-            </button>
-          )}
+        <div className="flex justify-end">
+          <button
+            onClick={handleSaveInfo}
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] whitespace-nowrap"
+          >
+            Bilgileri Kaydet <Sparkles size={16} fill="currentColor" />
+          </button>
         </div>
 
       </div>

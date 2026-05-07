@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Copy, Check, Terminal, Menu, Share2 } from 'lucide-react';
+import { CalendarDays, Clock, Copy, Check, Terminal, Menu } from 'lucide-react';
 import type { CompiledPlan } from '../api/types';
 import { mockData } from '../mockData';
 
@@ -100,8 +100,11 @@ export default function ResultPage() {
             >
               <span>Yeni Girdi</span>
             </button>
-            <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-full font-bold text-sm text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
-              <Share2 size={16} /> <span className="hidden sm:inline">Paylaş</span>
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-full font-bold text-sm text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+            >
+              <CalendarDays size={16} /> <span className="hidden sm:inline">Takvim</span>
             </button>
           </div>
         </div>
