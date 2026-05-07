@@ -26,6 +26,8 @@ type LoadingState = {
   request?: PlanRequest;
 } | null;
 
+const planRequests = new Map<string, Promise<CompiledPlan>>();
+
 function readFallbackPlan(): CompiledPlan {
   const saved = localStorage.getItem(LAST_PLAN_KEY);
   if (saved) {
@@ -37,6 +39,22 @@ function readFallbackPlan(): CompiledPlan {
   }
 
   return mockData;
+}
+
+function getPlanRequestKey(request: PlanRequest): string {
+  return JSON.stringify(request);
+}
+
+function submitPlanOnce(request: PlanRequest): Promise<CompiledPlan> {
+  const key = getPlanRequestKey(request);
+  const existing = planRequests.get(key);
+  if (existing) return existing;
+
+  const requestPromise = submitPlan(request).finally(() => {
+    planRequests.delete(key);
+  });
+  planRequests.set(key, requestPromise);
+  return requestPromise;
 }
 
 export default function LoadingPage() {
@@ -70,7 +88,7 @@ export default function LoadingPage() {
     const finish = async () => {
       try {
         const plan = loadingState?.request
-          ? await submitPlan(loadingState.request)
+          ? await submitPlanOnce(loadingState.request)
           : loadingState?.plan ?? readFallbackPlan();
 
         const elapsed = Date.now() - startTime;

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, User, Clock, Target, Heart, Zap, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, Sparkles, User, Clock, Target, Heart, Zap, FileText } from 'lucide-react';
 import { getSavedPlan, listPlans } from '../api/client';
 import type { PlanCustomization } from '../api/types';
 
-const LAST_INPUT_KEY = 'onenext_last_input';
+const CUSTOMIZATION_KEY = 'onenext_customization';
 
 const emptyCustomization: PlanCustomization = {
   name: '',
@@ -88,10 +88,7 @@ function FormTextarea({
 
 export default function CustomizePage() {
   const navigate = useNavigate();
-  const rawInput = localStorage.getItem(LAST_INPUT_KEY) ?? '';
-  const hasInput = rawInput.trim().length > 0;
   const dirtyRef = useRef(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [customization, setCustomization] = useState<PlanCustomization>(emptyCustomization);
 
   const updateCustomization = (field: keyof PlanCustomization, value: string) => {
@@ -103,6 +100,19 @@ export default function CustomizePage() {
     let cancelled = false;
 
     const hydrateLatestCustomization = async () => {
+      const savedCustomization = localStorage.getItem(CUSTOMIZATION_KEY);
+      if (savedCustomization) {
+        try {
+          setCustomization({
+            ...emptyCustomization,
+            ...(JSON.parse(savedCustomization) as Partial<PlanCustomization>),
+          });
+          return;
+        } catch {
+          // Ignore malformed local customization and try saved plan history.
+        }
+      }
+
       try {
         const plans = await listPlans();
         if (plans.length === 0) return;
@@ -127,30 +137,26 @@ export default function CustomizePage() {
   }, []);
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/input');
   };
 
-  const handlePlan = () => {
-    if (!hasInput) {
-      handleBack();
-      return;
-    }
-
-    setErrorMessage(null);
-    localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    navigate('/loading', { state: { request: { raw_input: rawInput, customization } } });
+  const handleSaveInfo = () => {
+    localStorage.setItem(CUSTOMIZATION_KEY, JSON.stringify(customization));
+    navigate('/input');
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 p-4 md:p-8">
       
-      {/* Üst Bar / Geri Dön */}
-      <button 
-        onClick={handleBack}
-        className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm w-fit"
-      >
-        <ArrowLeft size={16} /> Ana sayfaya dön
-      </button>
+      {/* Üst Bar */}
+      <div className="flex items-start">
+        <button 
+          onClick={handleBack}
+          className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm border border-slate-200 shadow-sm"
+        >
+          <ArrowLeft size={16} /> Girdi ekranına dön
+        </button>
+      </div>
 
       {/* Hero Section */}
       <div className="text-center max-w-2xl mx-auto mb-8">
@@ -160,147 +166,130 @@ export default function CustomizePage() {
           </div>
           <Sparkles className="absolute -top-2 -right-4 text-[#f694c1] animate-pulse" size={20} />
         </div>
-        <h2 className="text-3xl md:text-[2.5rem] font-extrabold tracking-tight text-[#1e293b] mb-3">Gününü Kişiselleştir</h2>
+        <h2 className="text-3xl md:text-[2.5rem] font-extrabold tracking-tight text-[#1e293b] mb-3">Seni Tanıyalım</h2>
         <p className="text-slate-500 font-medium">
-          Planını senin hayatına göre daha iyi oluşturabilmemiz için<br className="hidden md:block" />
-          isteğe bağlı bilgilerini paylaşabilirsin. 🐾
+          Planını rutinine, enerjine ve önceliklerine göre daha iyi oluşturabilmemiz için isteğe bağlı bilgilerini paylaşabilirsin. 🐾
         </p>
       </div>
 
-      {/* Bento Form Alanları */}
+      {/* Forms */}
       <div className="space-y-6 max-w-4xl mx-auto">
-        {errorMessage && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {errorMessage}
-          </div>
-        )}
-        
-        {/* 1. Hakkında */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-[#e4c1f9]/20 rounded-xl text-purple-600">
-              <User size={18} fill="currentColor" />
-            </div>
-            <h3 className="font-extrabold text-slate-800 text-lg">Hakkında</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <FormInput label="Adın (isteğe bağlı)" placeholder="Örn. Ayşe" value={customization.name} onChange={(value) => updateCustomization('name', value)} />
-            <FormInput label="Yaşın (isteğe bağlı)" placeholder="Örn. 22" value={customization.age} onChange={(value) => updateCustomization('age', value)} />
-            <FormInput label="Mesleğin / Okulun (isteğe bağlı)" placeholder="Örn. Yazılımcı / Üniversite Öğrencisi" value={customization.role_or_school} onChange={(value) => updateCustomization('role_or_school', value)} />
-          </div>
-        </div>
-
-        {/* 2. Rutinin & Zaman Blokları */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-[#f694c1]/20 rounded-xl text-[#f694c1]">
-              <Clock size={18} />
-            </div>
-            <h3 className="font-extrabold text-slate-800 text-lg">Rutinin & Zaman Blokları</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <FormInput label="Uyku saat aralığın (isteğe bağlı)" placeholder="Örn. 23:30 - 07:30" value={customization.sleep_window} onChange={(value) => updateCustomization('sleep_window', value)} />
-            <FormInput label="Okul saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 15:00" value={customization.school_hours} onChange={(value) => updateCustomization('school_hours', value)} />
-            <FormInput label="İş / Mesai saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 18:00" value={customization.work_hours} onChange={(value) => updateCustomization('work_hours', value)} />
-            <FormInput label="En verimli olduğun saatler (isteğe bağlı)" placeholder="Örn. 10:00 - 13:00" value={customization.productive_hours} onChange={(value) => updateCustomization('productive_hours', value)} />
-            <FormInput label="Tek seferlik odaklanma süren (isteğe bağlı)" placeholder="Örn. 45 dk veya 1.5 saat" value={customization.focus_duration} onChange={(value) => updateCustomization('focus_duration', value)} />
-            <FormInput label="Günlük toplam çalışma hedefin (isteğe bağlı)" placeholder="Örn. 4 saat" value={customization.daily_work_goal} onChange={(value) => updateCustomization('daily_work_goal', value)} />
-          </div>
-        </div>
-
-        {/* 3. Önceliklerin & Detaylar Container */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 space-y-8">
-          
-          {/* Önceliklerin */}
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-[#f694c1]/10 rounded-xl text-[#f694c1]">
-                <Target size={18} />
-              </div>
-              <h3 className="font-extrabold text-slate-800 text-lg">Önceliklerin</h3>
-            </div>
-            <FormTextarea 
-              label="Sana en önemli olan şeyler neler? (isteğe bağlı)"
-              placeholder="Örn. Sağlık, dersler, kariyer, kişisel gelişim..."
-              value={customization.priorities}
-              onChange={(value) => updateCustomization('priorities', value)}
-              maxLength={300}
-            />
-          </div>
-
-          {/* Odaklanma & Zorlayanlar */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-red-50 rounded-xl text-red-400">
-                  <Heart size={18} fill="currentColor" />
+            {/* 1. Hakkında */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-in fade-in duration-500">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-[#e4c1f9]/20 rounded-xl text-purple-600">
+                  <User size={18} fill="currentColor" />
                 </div>
-                <h3 className="font-extrabold text-slate-800 text-lg">Odaklanmana Yardımcı Olanlar</h3>
+                <h3 className="font-extrabold text-slate-800 text-lg">Hakkında</h3>
               </div>
-              <FormTextarea 
-                label=""
-                description="Seni motive eden veya odaklanmanı kolaylaştıran alışkanlıklar, ortamlar, yöntemler..."
-                placeholder="Örn. Müzik, sessiz ortam, pomodoro tekniği..."
-                value={customization.focus_helpers}
-                onChange={(value) => updateCustomization('focus_helpers', value)}
-                maxLength={200}
-                maxLines={4}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <FormInput label="Adın (isteğe bağlı)" placeholder="Örn. Ayşe" value={customization.name} onChange={(value) => updateCustomization('name', value)} />
+                <FormInput label="Yaşın (isteğe bağlı)" placeholder="Örn. 22" value={customization.age} onChange={(value) => updateCustomization('age', value)} />
+                <FormInput label="Mesleğin / Okulun (isteğe bağlı)" placeholder="Örn. Yazılımcı / Üniversite Öğrencisi" value={customization.role_or_school} onChange={(value) => updateCustomization('role_or_school', value)} />
+              </div>
             </div>
-            
-            <div className="flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-[#ede7b1]/40 rounded-xl text-yellow-600">
-                  <Zap size={18} fill="currentColor" />
+
+            {/* 2. Rutinin & Zaman Blokları */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-in fade-in duration-500 delay-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-[#f694c1]/20 rounded-xl text-[#f694c1]">
+                  <Clock size={18} />
                 </div>
-                <h3 className="font-extrabold text-slate-800 text-lg">Zorlayan Durumlar</h3>
+                <h3 className="font-extrabold text-slate-800 text-lg">Rutinin & Zaman Blokları</h3>
               </div>
-              <FormTextarea 
-                label=""
-                description="Dikkatini dağıtan veya ertelemene neden olan durumlar..."
-                placeholder="Örn. Sosyal medya, dağınık masa, belirsizlik..."
-                value={customization.challenges}
-                onChange={(value) => updateCustomization('challenges', value)}
-                maxLength={200}
-                maxLines={4}
-              />
-            </div>
-          </div>
-
-          {/* Ek Notlar */}
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-[#d3f8e2]/50 rounded-xl text-green-600">
-                <FileText size={18} />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <FormInput label="Uyku saat aralığın (isteğe bağlı)" placeholder="Örn. 23:30 - 07:30" value={customization.sleep_window} onChange={(value) => updateCustomization('sleep_window', value)} />
+                <FormInput label="Okul saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 15:00" value={customization.school_hours} onChange={(value) => updateCustomization('school_hours', value)} />
+                <FormInput label="İş / Mesai saatlerin (isteğe bağlı)" placeholder="Örn. 09:00 - 18:00" value={customization.work_hours} onChange={(value) => updateCustomization('work_hours', value)} />
+                <FormInput label="En verimli olduğun saatler (isteğe bağlı)" placeholder="Örn. 10:00 - 13:00" value={customization.productive_hours} onChange={(value) => updateCustomization('productive_hours', value)} />
+                <FormInput label="Tek seferlik odaklanma süren (isteğe bağlı)" placeholder="Örn. 45 dk veya 1.5 saat" value={customization.focus_duration} onChange={(value) => updateCustomization('focus_duration', value)} />
+                <FormInput label="Günlük toplam çalışma hedefin (isteğe bağlı)" placeholder="Örn. 4 saat" value={customization.daily_work_goal} onChange={(value) => updateCustomization('daily_work_goal', value)} />
               </div>
-              <h3 className="font-extrabold text-slate-800 text-lg">Ek Notlar</h3>
             </div>
-            <FormTextarea 
-              label="Planında dikkate almamızı istediğin başka bir şey var mı?"
-              placeholder="Örn. Önemli bir sınav, seyahat, sağlık durumu..."
-              value={customization.additional_notes}
-              onChange={(value) => updateCustomization('additional_notes', value)}
-              maxLength={300}
-            />
-          </div>
 
-        </div>
+            {/* 3. Önceliklerin & Detaylar Container */}
+            <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 space-y-8 animate-in fade-in duration-500 delay-200">
+              {/* Önceliklerin */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-[#f694c1]/10 rounded-xl text-[#f694c1]">
+                    <Target size={18} />
+                  </div>
+                  <h3 className="font-extrabold text-slate-800 text-lg">Önceliklerin</h3>
+                </div>
+                <FormTextarea 
+                  label="Sana en önemli olan şeyler neler? (isteğe bağlı)"
+                  placeholder="Örn. Sağlık, dersler, kariyer, kişisel gelişim..."
+                  value={customization.priorities}
+                  onChange={(value) => updateCustomization('priorities', value)}
+                  maxLength={300}
+                />
+              </div>
+
+              {/* Odaklanma & Zorlayanlar */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-red-50 rounded-xl text-red-400">
+                      <Heart size={18} fill="currentColor" />
+                    </div>
+                    <h3 className="font-extrabold text-slate-800 text-lg">Odaklanmana Yardımcı Olanlar</h3>
+                  </div>
+                  <FormTextarea 
+                    label=""
+                    description="Seni motive eden veya odaklanmanı kolaylaştıran alışkanlıklar, ortamlar, yöntemler..."
+                    placeholder="Örn. Müzik, sessiz ortam, pomodoro tekniği..."
+                    value={customization.focus_helpers}
+                    onChange={(value) => updateCustomization('focus_helpers', value)}
+                    maxLength={200}
+                    maxLines={4}
+                  />
+                </div>
+                
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-[#ede7b1]/40 rounded-xl text-yellow-600">
+                      <Zap size={18} fill="currentColor" />
+                    </div>
+                    <h3 className="font-extrabold text-slate-800 text-lg">Zorlayan Durumlar</h3>
+                  </div>
+                  <FormTextarea 
+                    label=""
+                    description="Dikkatini dağıtan veya ertelemene neden olan durumlar..."
+                    placeholder="Örn. Sosyal medya, dağınık masa, belirsizlik..."
+                    value={customization.challenges}
+                    onChange={(value) => updateCustomization('challenges', value)}
+                    maxLength={200}
+                    maxLines={4}
+                  />
+                </div>
+              </div>
+
+              {/* Ek Notlar */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-[#d3f8e2]/50 rounded-xl text-green-600">
+                    <FileText size={18} />
+                  </div>
+                  <h3 className="font-extrabold text-slate-800 text-lg">Ek Notlar</h3>
+                </div>
+                <FormTextarea 
+                  label="Planında dikkate almamızı istediğin başka bir şey var mı?"
+                  placeholder="Örn. Önemli bir sınav, seyahat, sağlık durumu..."
+                  value={customization.additional_notes}
+                  onChange={(value) => updateCustomization('additional_notes', value)}
+                  maxLength={300}
+                />
+              </div>
+            </div>
 
         {/* Footer / Kaydet Alanı */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-5 md:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-start md:items-center gap-3 bg-[#a9def9]/10 p-4 rounded-2xl border border-[#a9def9]/30 flex-1 w-full">
-            <Lock size={20} className="text-[#a9def9] flex-shrink-0 mt-0.5 md:mt-0" />
-            <p className="text-sm font-medium text-slate-600 leading-snug">
-              <strong className="text-slate-800">Bu bilgiler sadece senin planını iyileştirmek için kullanılır.</strong><br/>
-              Plan kaydınla birlikte saklanır; başka biriyle paylaşılmaz.
-            </p>
-          </div>
-          
-          <button 
-            onClick={hasInput ? handlePlan : handleBack}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
+        <div className="flex justify-end">
+          <button
+            onClick={handleSaveInfo}
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#f694c1] to-[#e4c1f9] hover:opacity-90 text-white font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] whitespace-nowrap"
           >
-            {hasInput ? "Gününü Planla" : "Kaydet ve Dön"} <Sparkles size={16} fill="currentColor" />
+            Bilgileri Kaydet <Sparkles size={16} fill="currentColor" />
           </button>
         </div>
 

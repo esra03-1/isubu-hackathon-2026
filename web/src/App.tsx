@@ -3,12 +3,14 @@ import InputPage from './pages/InputPage';
 import LoadingPage from './pages/LoadingPage';
 import ResultPage from './pages/ResultPage';
 import CustomizePage from './pages/CustomizePage';
+import CalendarPage from './pages/CalendarPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<InputPage />} />
+        <Route path="/" element={<CalendarPage />} />
+        <Route path="/input" element={<InputPage />} />
         <Route path="/customize" element={<CustomizePage />} />
         <Route path="/loading" element={<LoadingPage />} />
         <Route path="/result" element={<ResultPage />} />

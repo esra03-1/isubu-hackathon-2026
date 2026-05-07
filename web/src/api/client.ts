@@ -1,4 +1,4 @@
-import type { CompileRequest, CompiledPlan, PlanCustomization, PlanSummary, SavedPlan } from './types';
+import type { CalendarEvent, CompileRequest, CompiledPlan, PlanCustomization, PlanSummary, SavedPlan } from './types';
 
 const CLIENT_ID_KEY = 'onenext_client_id';
 
@@ -75,6 +75,25 @@ export async function getSavedPlan(planId: string): Promise<SavedPlan> {
   }
 
   return response.json();
+}
+
+export async function getCalendarEvents(start: string, end: string): Promise<CalendarEvent[]> {
+  const clientId = getOneNextClientId();
+  const params = new URLSearchParams({ start, end });
+
+  const response = await fetch(`/api/v1/calendar?${params.toString()}`, {
+    headers: {
+      'X-OneNext-Client-ID': clientId,
+    },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? 'Failed to fetch calendar events');
+  }
+
+  const body = await response.json() as { events: CalendarEvent[] };
+  return body.events;
 }
 
 /**
