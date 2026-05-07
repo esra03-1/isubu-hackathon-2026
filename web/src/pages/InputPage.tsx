@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Sparkles, Eraser, User, Lightbulb } from 'lucide-react';
-import { mockData } from '../mockData';
-import type { PlanCustomization } from '../api/types';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CalendarDays, Sparkles, Eraser, User, Lightbulb } from "lucide-react";
+// import { mockData } from "../mockData";
+import type { PlanCustomization } from "../api/types";
 
-const LAST_INPUT_KEY = 'onenext_last_input';
-const LAST_PLAN_KEY = 'onenext_last_plan';
-const LAST_TS_KEY = 'onenext_last_ts';
-const CUSTOMIZATION_KEY = 'onenext_customization';
+const LAST_INPUT_KEY = "onenext_last_input";
+// const LAST_PLAN_KEY = "onenext_last_plan";
+// const LAST_TS_KEY = "onenext_last_ts";
+const CUSTOMIZATION_KEY = "onenext_customization";
 
 const MAX_LENGTH = 4000;
 
@@ -25,19 +25,19 @@ function readSavedCustomization(): Partial<PlanCustomization> | undefined {
 export default function InputPage() {
   const navigate = useNavigate();
   const [rawInput, setRawInput] = useState(
-    () => localStorage.getItem(LAST_INPUT_KEY) ?? ''
+    () => localStorage.getItem(LAST_INPUT_KEY) ?? "",
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const saveAndNavigate = (plan: typeof mockData) => {
-    localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
-    localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
-    navigate('/loading', { state: { plan } });
-  };
+  // const saveAndNavigate = (plan: typeof mockData) => {
+  //   localStorage.setItem(LAST_INPUT_KEY, rawInput);
+  //   localStorage.setItem(LAST_PLAN_KEY, JSON.stringify(plan));
+  //   localStorage.setItem(LAST_TS_KEY, new Date().toISOString());
+  //   navigate("/loading", { state: { plan } });
+  // };
 
   const handleClear = () => {
-    setRawInput('');
+    setRawInput("");
     setErrorMessage(null);
   };
 
@@ -45,19 +45,24 @@ export default function InputPage() {
     if (!rawInput.trim()) return;
     setErrorMessage(null);
     localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    navigate('/loading', {
-      state: { request: { raw_input: rawInput, customization: readSavedCustomization() } },
+    navigate("/loading", {
+      state: {
+        request: {
+          raw_input: rawInput,
+          customization: readSavedCustomization(),
+        },
+      },
     });
   };
 
-  const handleDemo = () => {
-    setErrorMessage(null);
-    saveAndNavigate(mockData);
-  };
+  // const handleDemo = () => {
+  //   setErrorMessage(null);
+  //   saveAndNavigate(mockData);
+  // };
 
   const handleCustomize = () => {
     localStorage.setItem(LAST_INPUT_KEY, rawInput);
-    navigate('/customize');
+    navigate("/customize");
   };
 
   return (
@@ -74,7 +79,8 @@ export default function InputPage() {
           </span>
         </h2>
         <p className="text-slate-500 text-lg font-medium">
-          Mesajlarını, notlarını, hatırlatmalarını veya aklındaki karışıklığı yaz.
+          Mesajlarını, notlarını, hatırlatmalarını veya aklındaki karışıklığı
+          yaz.
           <br className="hidden md:block" />
           Biz senin için derleyelim. 🐾
         </p>
@@ -89,7 +95,7 @@ export default function InputPage() {
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <button
               id="calendar-btn"
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98]"
             >
               <CalendarDays size={16} /> Takvim
@@ -140,13 +146,13 @@ export default function InputPage() {
               <Eraser size={16} /> Temizle
             </button>
 
-            <button
+            {/* <button
               id="demo-btn"
               onClick={handleDemo}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#f694c1]/30 bg-white text-[#d85888] text-sm font-bold shadow-sm hover:bg-[#fff7fb] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles size={16} /> Demo
-            </button>
+            </button> */}
 
             <button
               id="compile-btn"
@@ -164,7 +170,8 @@ export default function InputPage() {
       <div className="bg-[#a9def9]/15 border border-[#a9def9]/30 rounded-2xl p-4 max-w-3xl mx-auto flex items-center justify-center gap-3 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm mt-8">
         <Lightbulb size={20} className="text-yellow-500 fill-yellow-500" />
         <p>
-          <strong>İpucu:</strong> Seni biraz tanırsak, planın rutinine ve önceliklerine göre daha isabetli olur.
+          <strong>İpucu:</strong> Seni biraz tanırsak, planın rutinine ve
+          önceliklerine göre daha isabetli olur.
         </p>
       </div>
     </div>

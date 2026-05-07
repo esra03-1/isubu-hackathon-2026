@@ -51,6 +51,24 @@ const sourceLabels: Record<CalendarEvent["source"], string> = {
 };
 
 const MIN_VISUAL_EVENT_MINUTES = 15;
+const COMPLETED_EVENTS_KEY = "onenext_completed_events";
+const checkboxClass =
+  'shrink-0 appearance-none rounded-lg border-2 border-[#cdb4db]/40 bg-white shadow-sm transition-all checked:border-[#d85888] checked:bg-[#ffafcc] checked:bg-[url("data:image/svg+xml,%3Csvg%20viewBox%3D%270%200%2016%2016%27%20fill%3D%27none%27%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%3E%3Cpath%20d%3D%27M3.5%208.2L6.6%2011.2L12.8%204.8%27%20stroke%3D%27white%27%20stroke-width%3D%272.2%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E")] checked:bg-center checked:bg-no-repeat focus:outline-none focus:ring-2 focus:ring-[#e4c1f9]';
+
+function readCompletedEvents(): Set<string> {
+  const saved = localStorage.getItem(COMPLETED_EVENTS_KEY);
+  if (!saved) return new Set();
+
+  try {
+    return new Set(JSON.parse(saved) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCompletedEvents(completed: Set<string>) {
+  localStorage.setItem(COMPLETED_EVENTS_KEY, JSON.stringify([...completed]));
+}
 
 function formatDateParam(date: Date): string {
   const year = date.getFullYear();
@@ -89,6 +107,10 @@ function addMinutesToDateTime(date: string, time: string, minutes: number): stri
 
 function getTimelineKey(time: string, title: string): string {
   return `${time}|${title.trim().toLocaleLowerCase("tr-TR")}`;
+}
+
+function getCompletionKey(date: string, time: string, title: string): string {
+  return `${date}|${getTimelineKey(time, title)}`;
 }
 
 function getTimelineDurations(plan: CompiledPlan): Map<string, number> {
@@ -160,6 +182,7 @@ export default function CalendarPage() {
     null,
   );
   const [isOpeningPlan, setIsOpeningPlan] = useState(false);
+  const [completedEvents, setCompletedEvents] = useState(readCompletedEvents);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
@@ -212,6 +235,20 @@ export default function CalendarPage() {
   const selectedEvents = events.filter((event) => event.date === selectedDate);
   const selectedPlanId = getMostRecentPlanId(selectedEvents);
 
+  const toggleCompleted = (event: CalendarEvent) => {
+    const key = getCompletionKey(event.date, event.time, event.title);
+    setCompletedEvents((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      writeCompletedEvents(next);
+      return next;
+    });
+  };
+
   const handleOpenSelectedPlan = async () => {
     if (!selectedPlanId) return;
 
@@ -219,7 +256,9 @@ export default function CalendarPage() {
     setModalErrorMessage(null);
     try {
       const savedPlan = await getSavedPlan(selectedPlanId);
-      navigate("/result", { state: { plan: savedPlan.compiled_plan } });
+      navigate("/result", {
+        state: { plan: savedPlan.compiled_plan, planningDate: savedPlan.planning_date },
+      });
     } catch (error) {
       setModalErrorMessage(
         error instanceof Error ? error.message : "Plan detayı açılamadı.",
@@ -455,11 +494,23 @@ export default function CalendarPage() {
                     key={event.id}
                     className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-white shadow-sm"
                   >
+                    <input
+                      type="checkbox"
+                      checked={completedEvents.has(getCompletionKey(event.date, event.time, event.title))}
+                      onChange={() => toggleCompleted(event)}
+                      className={`mt-1 h-4 w-4 ${checkboxClass}`}
+                    />
                     <div className="w-12 shrink-0 text-sm font-black text-slate-800">
                       {event.time}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p
+                        className={`text-sm font-semibold text-slate-700 ${
+                          completedEvents.has(getCompletionKey(event.date, event.time, event.title))
+                            ? "line-through opacity-50"
+                            : ""
+                        }`}
+                      >
                         {event.title}
                       </p>
                       <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">
